@@ -10,9 +10,9 @@ const app = express();
 const pool = mysql.createPool({
   host:            process.env.DB_HOST     || '89.117.56.39',
   port:            parseInt(process.env.DB_PORT) || 3308,
-  database:        process.env.DB_NAME     || 'motos_app',
-  user:            process.env.DB_USER     || 'pos_user_moto',
-  password:        process.env.DB_PASSWORD || 'M0t0s!4#S3cur3_2026',
+  database:        process.env.DB_NAME     || 'ventanas_estilo',
+  user:            process.env.DB_USER     || 'pos_user',
+  password:        process.env.DB_PASSWORD || 'Pap3l3r!4#S3cur3_2026',
   waitForConnections: true,
   connectionLimit: 10,
   charset:         'utf8mb4'
