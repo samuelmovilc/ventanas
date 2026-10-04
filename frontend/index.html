@@ -1332,11 +1332,11 @@ async function cargarCotizacionAlPOS(planId) {
         var divCredito = document.createElement('div');
         divCredito.style.display = 'flex'; divCredito.style.gap = '5px'; divCredito.style.marginBottom = '5px';
         divCredito.innerHTML = `
-          <select class="pay-method" style="flex:1;padding:4px;font-size:12px;border:1px solid var(--border);border-radius:4px" onchange="calcTotalPagaCon()">
+          <select class="pay-method" style="flex:1;padding:4px;font-size:12px;border:1px solid var(--border);border-radius:4px" onchange="syncPagaCon()">
             <option value="Crédito" selected>Crédito</option>
           </select>
-          <input type="number" class="pay-amount" value="${saldo}" step="0.01" style="width:80px;padding:4px;font-size:12px;border:1px solid var(--border);border-radius:4px" oninput="calcTotalPagaCon()" readonly>
-          <button class="btn btn-secondary btn-xs" style="color:var(--red)" onclick="this.parentElement.remove();calcTotalPagaCon()"><i class="fa-solid fa-trash"></i></button>
+          <input type="number" class="pay-amount" value="${saldo}" step="0.01" style="width:80px;padding:4px;font-size:12px;border:1px solid var(--border);border-radius:4px" oninput="syncPagaCon()" readonly>
+          <button class="btn btn-secondary btn-xs" style="color:var(--red)" onclick="this.parentElement.remove();syncPagaCon()"><i class="fa-solid fa-trash"></i></button>
         `;
         document.getElementById('multi-pay-list').appendChild(divCredito);
       }
@@ -1345,13 +1345,13 @@ async function cargarCotizacionAlPOS(planId) {
         var divInicial = document.createElement('div');
         divInicial.style.display = 'flex'; divInicial.style.gap = '5px'; divInicial.style.marginBottom = '5px';
         divInicial.innerHTML = `
-          <select class="pay-method" style="flex:1;padding:4px;font-size:12px;border:1px solid var(--border);border-radius:4px" onchange="calcTotalPagaCon()">
+          <select class="pay-method" style="flex:1;padding:4px;font-size:12px;border:1px solid var(--border);border-radius:4px" onchange="syncPagaCon()">
             <option value="Efectivo" selected>Efectivo (Abono Inicial)</option>
             <option value="Transferencia">Transferencia (Abono Inicial)</option>
             <option value="Tarjeta">Tarjeta (Abono Inicial)</option>
           </select>
-          <input type="number" class="pay-amount" value="${inicial}" step="0.01" style="width:80px;padding:4px;font-size:12px;border:1px solid var(--border);border-radius:4px" oninput="calcTotalPagaCon()" readonly>
-          <button class="btn btn-secondary btn-xs" style="color:var(--red)" onclick="this.parentElement.remove();calcTotalPagaCon()"><i class="fa-solid fa-trash"></i></button>
+          <input type="number" class="pay-amount" value="${inicial}" step="0.01" style="width:80px;padding:4px;font-size:12px;border:1px solid var(--border);border-radius:4px" oninput="syncPagaCon()" readonly>
+          <button class="btn btn-secondary btn-xs" style="color:var(--red)" onclick="this.parentElement.remove();syncPagaCon()"><i class="fa-solid fa-trash"></i></button>
         `;
         document.getElementById('multi-pay-list').appendChild(divInicial);
       }
@@ -1360,7 +1360,7 @@ async function cargarCotizacionAlPOS(planId) {
          addPayRow(); // Fallback si total es 0
       }
       
-      calcTotalPagaCon();
+      syncPagaCon();
       
       toast('Cotización cargada correctamente', 'success');
     }
