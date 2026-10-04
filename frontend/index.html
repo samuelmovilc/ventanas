@@ -340,6 +340,8 @@ tr.anulada-row td{opacity:.55}tr.anulada-row{background:#fff5f5!important}
 @media(max-width:900px){
   .mobile-only { display: flex; }
   .desktop-only { display: none !important; }
+  .resp-grid { grid-template-columns: 1fr !important; gap: 10px !important; }
+  #modal-cartera-detalle .modal-body { grid-template-columns: 1fr !important; }
 }
 /* FAB STYLES */
 .fab-cart {
@@ -889,19 +891,19 @@ tr.anulada-row td{opacity:.55}tr.anulada-row{background:#fff5f5!important}
         <div style="text-align:center;color:var(--text-light);font-size:12px;padding:10px">No hay productos agregados.</div>
       </div>
       
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="resp-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div class="form-group"><label>Precio de Contado (Suma)</label><input type="number" id="credito-precio-contado" placeholder="0" readonly style="background:var(--surface2)"></div>
         <div class="form-group"><label>% Recargo</label><input type="number" id="credito-recargo-porcentaje" placeholder="15" value="15" oninput="calcularPlanCredito()"></div>
       </div>
       
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+      <div class="resp-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
         <div class="form-group"><label>Total Crédito</label><input type="text" id="credito-total-venta" readonly style="background:var(--bg)"></div>
       
         <div class="form-group"><label>Abono Inicial</label><input type="number" id="credito-inicial" placeholder="0" oninput="calcularPlanCredito()"></div>
         <div class="form-group"><label>Saldo a Financiar</label><input type="text" id="credito-saldo" readonly style="background:var(--bg)"></div>
       </div>
       
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+      <div class="resp-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
         <div class="form-group"><label>N° Cuotas</label><input type="number" id="credito-cuotas" value="4" min="1" oninput="calcularPlanCredito()"></div>
         <div class="form-group">
           <label>Frecuencia</label>
