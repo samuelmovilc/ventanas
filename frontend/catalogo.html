@@ -216,7 +216,7 @@ function renderSmartCatalog() {
   document.getElementById('smart-footer-name').innerText = config.nombre;
   
   if (config.logo) {
-    document.getElementById('smart-public-logo-container').innerHTML = \`<img src="\${config.logo}" alt="Logo">\`;
+    document.getElementById('smart-public-logo-container').innerHTML = `<img src="${config.logo}" alt="Logo">`;
   }
   
   // Hide total if prices disabled
@@ -226,10 +226,10 @@ function renderSmartCatalog() {
   
   let gridHtml = '';
   prods.forEach(p => {
-    let imgHtml = p.imagen ? \`<img src="\${p.imagen}" class="smart-card-img" onerror="this.src='https://via.placeholder.com/300?text=Sin+Imagen'">\` 
-                           : \`<div class="smart-card-img" style="display:flex;align-items:center;justify-content:center;background:#eee;color:#aaa;"><i class="fa-solid fa-image fa-3x"></i></div>\`;
+    let imgHtml = p.imagen ? `<img src="${p.imagen}" class="smart-card-img" onerror="this.src='https://via.placeholder.com/300?text=Sin+Imagen'">` 
+                           : `<div class="smart-card-img" style="display:flex;align-items:center;justify-content:center;background:#eee;color:#aaa;"><i class="fa-solid fa-image fa-3x"></i></div>`;
                            
-    let priceHtml = config.mostrarPrecios ? \`<div class="smart-card-price">\${formatMoneda(p.precio_venta)}</div>\` : '';
+    let priceHtml = config.mostrarPrecios ? `<div class="smart-card-price">${formatMoneda(p.precio_venta)}</div>` : '';
     
     let angles = p.smart_angles || {
       emocional: "Descubre productos que hacen mejor tu día.",
@@ -238,27 +238,27 @@ function renderSmartCatalog() {
     };
     
     // Use an array of angles to show a random one or all. We will show the Emocional and Racional.
-    let angleHtml = \`
+    let angleHtml = `
       <div class="smart-angles">
-        <div class="smart-angle"><strong>Especial para ti</strong>\${angles.emocional}</div>
-        <div class="smart-angle"><strong>Características</strong>\${angles.racional}</div>
+        <div class="smart-angle"><strong>Especial para ti</strong>${angles.emocional}</div>
+        <div class="smart-angle"><strong>Características</strong>${angles.racional}</div>
       </div>
-    \`;
+    `;
     
-    gridHtml += \`
+    gridHtml += `
       <div class="smart-card">
-        \${imgHtml}
+        ${imgHtml}
         <div class="smart-card-body">
-          <div class="smart-card-title">\${p.nombre}</div>
-          \${angleHtml}
-          \${priceHtml}
+          <div class="smart-card-title">${p.nombre}</div>
+          ${angleHtml}
+          ${priceHtml}
           <div class="smart-card-actions">
-            <button class="smart-btn-add" onclick="addToSmartCart(\${p.id})"><i class="fa-solid fa-cart-plus"></i> Agregar</button>
-            <button class="smart-btn-wa" onclick="waInquire(\${p.id})"><i class="fa-brands fa-whatsapp"></i></button>
+            <button class="smart-btn-add" onclick="addToSmartCart(${p.id})"><i class="fa-solid fa-cart-plus"></i> Agregar</button>
+            <button class="smart-btn-wa" onclick="waInquire(${p.id})"><i class="fa-brands fa-whatsapp"></i></button>
           </div>
         </div>
       </div>
-    \`;
+    `;
   });
   
   document.getElementById('smart-public-grid').innerHTML = gridHtml;
@@ -285,7 +285,7 @@ function addToSmartCart(id) {
   updateSmartCartUI();
   
   // Feedback
-  let btn = document.querySelector(\`.smart-btn-add[onclick="addToSmartCart(\${id})"]\`);
+  let btn = document.querySelector(`.smart-btn-add[onclick="addToSmartCart(${id})"]`);
   if (btn) {
     let orig = btn.innerHTML;
     btn.innerHTML = '<i class="fa-solid fa-check"></i> Agregado';
@@ -320,23 +320,23 @@ function updateSmartCartUI() {
     totalQty += item.qty;
     totalPrice += (item.precio * item.qty);
     
-    let imgHtml = item.imagen ? \`<img src="\${item.imagen}" class="smart-cart-item-img">\` : \`<div class="smart-cart-item-img" style="background:#eee;"></div>\`;
-    let priceHtml = showPrices ? \`<div class="smart-cart-item-price">\${formatMoneda(item.precio * item.qty)}</div>\` : '';
+    let imgHtml = item.imagen ? `<img src="${item.imagen}" class="smart-cart-item-img">` : `<div class="smart-cart-item-img" style="background:#eee;"></div>`;
+    let priceHtml = showPrices ? `<div class="smart-cart-item-price">${formatMoneda(item.precio * item.qty)}</div>` : '';
     
-    html += \`
+    html += `
       <div class="smart-cart-item">
-        \${imgHtml}
+        ${imgHtml}
         <div class="smart-cart-item-info">
-          <div class="smart-cart-item-title">\${item.nombre}</div>
-          \${priceHtml}
+          <div class="smart-cart-item-title">${item.nombre}</div>
+          ${priceHtml}
           <div class="smart-qty-ctrl">
-            <button class="smart-qty-btn" onclick="updateSmartCartQty(\${item.id}, -1)">-</button>
-            <div class="smart-qty-val">\${item.qty}</div>
-            <button class="smart-qty-btn" onclick="updateSmartCartQty(\${item.id}, 1)">+</button>
+            <button class="smart-qty-btn" onclick="updateSmartCartQty(${item.id}, -1)">-</button>
+            <div class="smart-qty-val">${item.qty}</div>
+            <button class="smart-qty-btn" onclick="updateSmartCartQty(${item.id}, 1)">+</button>
           </div>
         </div>
       </div>
-    \`;
+    `;
   });
   
   if (smartCart.length === 0) {
@@ -365,11 +365,17 @@ function waInquire(id) {
   const config = smartPublicData.configuracion;
   const waNum = config.whatsapp || '573002397590';
   
-  let msg = \`Hola, estoy interesado en este producto de su catálogo.\\n\\n\`;
-  msg += \`Catálogo: \${config.nombre}\\n\`;
-  msg += \`Producto: \${p.nombre}\\n\`;
-  msg += \`Cantidad: 1\\n\\n\`;
-  msg += \`¿Podrían brindarme más información?\`;
+  let msg = `Hola, estoy interesado en este producto de su catálogo.\
+\
+`;
+  msg += `Catálogo: ${config.nombre}\
+`;
+  msg += `Producto: ${p.nombre}\
+`;
+  msg += `Cantidad: 1\
+\
+`;
+  msg += `¿Podrían brindarme más información?`;
   
   window.open('https://wa.me/' + waNum + '?text=' + encodeURIComponent(msg), '_blank');
 }
@@ -380,21 +386,31 @@ function checkoutSmartCart() {
   const waNum = config.whatsapp || '573002397590';
   const showPrices = config.mostrarPrecios;
   
-  let msg = \`Hola, quiero realizar un pedido a través de BETTER PLACE DIGITAL.\\n\\n\`;
-  msg += \`CATÁLOGO: \${config.nombre}\\n\\n\`;
-  msg += \`MI PEDIDO:\\n\`;
+  let msg = `Hola, quiero realizar un pedido a través de BETTER PLACE DIGITAL.\
+\
+`;
+  msg += `CATÁLOGO: ${config.nombre}\
+\
+`;
+  msg += `MI PEDIDO:\
+`;
   
   let total = 0;
   smartCart.forEach(item => {
-    msg += \`✅ \${item.nombre} x \${item.qty}\\n\`;
+    msg += `✅ ${item.nombre} x ${item.qty}\
+`;
     total += (item.precio * item.qty);
   });
   
   if (showPrices) {
-    msg += \`\\nTotal Estimado: \${formatMoneda(total)}\\n\`;
+    msg += `\
+Total Estimado: ${formatMoneda(total)}\
+`;
   }
   
-  msg += \`\\nQuiero confirmar disponibilidad, condiciones de entrega y forma de pago.\\nQuedo atento a la confirmación de un asesor.\`;
+  msg += `\
+Quiero confirmar disponibilidad, condiciones de entrega y forma de pago.\
+Quedo atento a la confirmación de un asesor.`;
   
   window.open('https://wa.me/' + waNum + '?text=' + encodeURIComponent(msg), '_blank');
 }
