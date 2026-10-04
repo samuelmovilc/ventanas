@@ -3419,7 +3419,7 @@ async function smartPublish() {
     hideLoading();
     
     if (data.success) {
-      const publicUrl = window.location.origin + '/catalogo/' + data.slug;
+      const publicUrl = window.location.origin + '/catalogo/';
       document.getElementById('smart-public-url').value = publicUrl;
       document.getElementById('smart-open-link').href = publicUrl;
       

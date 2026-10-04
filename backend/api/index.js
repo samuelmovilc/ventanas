@@ -666,7 +666,12 @@ app.post('/api/catalogos', async (req, res) => {
 
 app.get('/api/catalogos/:slug', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM catalogos WHERE slug = ? LIMIT 1', [req.params.slug]);
+    let rows;
+    if (req.params.slug === 'latest') {
+      [rows] = await pool.query('SELECT * FROM catalogos ORDER BY id DESC LIMIT 1');
+    } else {
+      [rows] = await pool.query('SELECT * FROM catalogos WHERE slug = ? LIMIT 1', [req.params.slug]);
+    }
     if (rows.length === 0) return res.status(404).json({ error: 'Catálogo no encontrado' });
     
     let catalogo = rows[0];
