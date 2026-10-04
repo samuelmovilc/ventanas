@@ -1312,9 +1312,9 @@ async function cargarCotizacionAlPOS(planId) {
         plan.productos.forEach(function(p) {
           var precioInflado = Math.round(p.precio * multiplicador);
           cart.push({
-            id: p.id,
+            codigo: p.id,
             nombre: p.nombre,
-            precio: precioInflado,
+            precioUnitario: precioInflado,
             cantidad: p.cantidad,
             subtotal: precioInflado * p.cantidad
           });
