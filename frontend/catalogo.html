@@ -153,6 +153,10 @@ body { background: #f4f6f9; margin: 0; font-family: 'Inter', sans-serif; }
 let smartPublicData = null;
 let smartCart = [];
 
+function formatMoneda(valor) {
+  return '$' + parseFloat(valor).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
 (function initSmartCommerce() {
   if (window.location.pathname.startsWith('/catalogo')) {
     
@@ -394,15 +398,6 @@ function checkoutSmartCart() {
   
   window.open('https://wa.me/' + waNum + '?text=' + encodeURIComponent(msg), '_blank');
 }
-</script>
-`;
-
-const targetTag = '<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>';
-content = content.replace(targetTag, appHTML + '\n' + appJS + '\n' + targetTag);
-
-fs.writeFileSync(file, content, 'utf8');
-console.log('App Pública Inyectada de forma segura');
-
 </script>
 </body>
 </html>
