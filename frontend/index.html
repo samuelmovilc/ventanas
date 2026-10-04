@@ -883,7 +883,10 @@ tr.anulada-row td{opacity:.55}tr.anulada-row{background:#fff5f5!important}
       
       <div class="form-group" style="position:relative">
         <label>Buscar Producto a Financiar</label>
-        <input type="text" id="cotizador-search-prod" placeholder="Escribe para buscar y añadir..." autocomplete="off">
+        <div style="display:flex;gap:5px;">
+          <input type="text" id="cotizador-search-prod" placeholder="Escribe nombre o código..." autocomplete="off" style="flex:1" oninput="filterCotizadorProducts(this.value)">
+          <input type="text" id="cotizador-barcode" placeholder="Código barras" autocomplete="off" style="width:120px" oninput="handleCotizadorBarcode(this.value)">
+        </div>
         <div id="cotizador-search-results" class="search-results-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:4px;max-height:200px;overflow-y:auto;z-index:100;box-shadow:0 5px 15px rgba(0,0,0,0.1)"></div>
       </div>
       
@@ -2752,6 +2755,7 @@ async function abrirCotizadorCredito() {
   document.getElementById('cotizador-cliente').innerHTML = document.getElementById('pos-cliente').innerHTML;
   
   document.getElementById('cotizador-search-prod').value = '';
+  document.getElementById('cotizador-barcode').value = '';
   document.getElementById('cotizador-search-results').style.display = 'none';
   cotizadorProductos = [];
   renderCotizadorProductos();
@@ -2780,7 +2784,9 @@ function renderCotizadorProductos() {
     var subtotal = p.precio * p.cantidad;
     totalContado += subtotal;
     html += '<div style="display:flex;justify-content:space-between;align-items:center;background:#fff;padding:5px;border:1px solid var(--border);border-radius:4px">';
-    html += '<div style="flex:1;font-size:11px"><b>'+p.nombre+'</b><br><span style="color:var(--text-light)">'+fmt(p.precio)+' x '+p.cantidad+'</span></div>';
+    html += '<div style="flex:1;font-size:11px"><b>'+p.nombre+'</b><br><span style="color:var(--text-light)">'+fmt(p.precio)+' x </span>';
+    html += '<input type="number" value="'+p.cantidad+'" min="1" max="'+p.stock+'" style="width:45px;padding:2px;font-size:11px;border:1px solid var(--border);border-radius:3px;text-align:center" onchange="updateCotizadorProdQty('+idx+', this.value, '+p.stock+')">';
+    html += '</div>';
     html += '<div style="font-weight:bold;margin-right:10px">'+fmt(subtotal)+'</div>';
     html += '<button class="btn btn-secondary btn-xs" style="color:var(--red);padding:2px 5px" onclick="removeCotizadorProd('+idx+')"><i class="fa-solid fa-trash"></i></button>';
     html += '</div>';
@@ -2795,33 +2801,64 @@ function removeCotizadorProd(idx) {
   renderCotizadorProductos();
 }
 
-document.getElementById('cotizador-search-prod').addEventListener('input', async function(e) {
-  var q = e.target.value.trim().toLowerCase();
+function updateCotizadorProdQty(idx, val, maxStock) {
+  var qty = parseInt(val) || 1;
+  if(qty > maxStock) { qty = maxStock; toast('Stock máximo: '+maxStock, 'error'); }
+  if(qty < 1) qty = 1;
+  cotizadorProductos[idx].cantidad = qty;
+  renderCotizadorProductos();
+}
+
+function filterCotizadorProducts(q) {
+  q = q.trim().toLowerCase();
   var resDiv = document.getElementById('cotizador-search-results');
   if(q.length < 2) { resDiv.style.display='none'; return; }
   
-  try {
-    var productos = await apiGet('/productos?search='+encodeURIComponent(q));
-    if(productos.length === 0) { resDiv.style.display='none'; return; }
-    var html = '';
-    productos.forEach(function(p) {
-      if(p.stock <= 0) return; // Opcional, pero mejor solo cotizar lo que hay
-      html += '<div class="search-result-item" style="padding:8px;border-bottom:1px solid #eee;cursor:pointer;font-size:12px" onclick="addCotizadorProd(\''+p.id+'\', \''+p.nombre.replace(/'/g,"\\'")+'\', '+p.precio_venta+')">';
-      html += '<div style="font-weight:bold">'+p.nombre+'</div>';
-      html += '<div style="color:var(--text-light);font-size:11px">ID: '+p.id+' | Stock: '+p.stock+' | <b>'+fmt(p.precio_venta)+'</b></div>';
-      html += '</div>';
-    });
-    resDiv.innerHTML = html;
-    resDiv.style.display = 'block';
-  } catch(err) { console.error(err); }
-});
+  var filtrados = productosCache.filter(function(p) {
+    return p.stock > 0 && (p.nombre.toLowerCase().includes(q) || String(p.id).toLowerCase().includes(q));
+  }).slice(0, 15);
+  
+  if(filtrados.length === 0) { resDiv.style.display='none'; return; }
+  
+  var html = '';
+  filtrados.forEach(function(p) {
+    html += '<div class="search-result-item" style="padding:8px;border-bottom:1px solid #eee;cursor:pointer;font-size:12px" onclick="addCotizadorProd(\''+p.id+'\', \''+p.nombre.replace(/'/g,"\\'")+'\', '+p.precio_venta+', '+p.stock+')">';
+    html += '<div style="font-weight:bold">'+p.nombre+'</div>';
+    html += '<div style="color:var(--text-light);font-size:11px">ID: '+p.id+' | Stock: '+p.stock+' | <b>'+fmt(p.precio_venta)+'</b></div>';
+    html += '</div>';
+  });
+  resDiv.innerHTML = html;
+  resDiv.style.display = 'block';
+}
 
-function addCotizadorProd(id, nombre, precio) {
+var cotBcTimer = null;
+function handleCotizadorBarcode(val) {
+  clearTimeout(cotBcTimer);
+  cotBcTimer = setTimeout(function(){
+    var scanned = val.trim();
+    if(scanned.length > 0){
+      var p=productosCache.find(function(x){return String(x.id)===scanned&&x.stock>0});
+      if(p){ 
+          addCotizadorProd(p.id, p.nombre, parseFloat(p.precio_venta), p.stock); 
+          toast(p.nombre+' agregado','success',1500);
+      } else {
+          toast('Código no encontrado o sin stock','error');
+      }
+      document.getElementById('cotizador-barcode').value='';
+    }
+  },220);
+}
+
+function addCotizadorProd(id, nombre, precio, stock) {
   var ex = cotizadorProductos.find(p => p.id === id);
-  if (ex) ex.cantidad++;
-  else cotizadorProductos.push({id: id, nombre: nombre, precio: precio, cantidad: 1});
+  if (ex) {
+      if(ex.cantidad >= stock) { toast('Stock máximo alcanzado', 'error'); }
+      else { ex.cantidad++; }
+  }
+  else cotizadorProductos.push({id: id, nombre: nombre, precio: precio, cantidad: 1, stock: stock || 999});
   
   document.getElementById('cotizador-search-prod').value = '';
+  document.getElementById('cotizador-barcode').value = '';
   document.getElementById('cotizador-search-results').style.display = 'none';
   renderCotizadorProductos();
 }
