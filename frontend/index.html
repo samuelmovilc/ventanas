@@ -1331,6 +1331,7 @@ async function cargarCotizacionAlPOS(planId) {
       
       if (saldo > 0) {
         var divCredito = document.createElement('div');
+        divCredito.className = 'multi-pay-row';
         divCredito.style.display = 'flex'; divCredito.style.gap = '5px'; divCredito.style.marginBottom = '5px';
         divCredito.innerHTML = `
           <select class="pay-method" style="flex:1;padding:4px;font-size:12px;border:1px solid var(--border);border-radius:4px" onchange="syncPagaCon()">
@@ -1344,6 +1345,7 @@ async function cargarCotizacionAlPOS(planId) {
       
       if (inicial > 0) {
         var divInicial = document.createElement('div');
+        divInicial.className = 'multi-pay-row';
         divInicial.style.display = 'flex'; divInicial.style.gap = '5px'; divInicial.style.marginBottom = '5px';
         divInicial.innerHTML = `
           <select class="pay-method" style="flex:1;padding:4px;font-size:12px;border:1px solid var(--border);border-radius:4px" onchange="syncPagaCon()">
