@@ -3203,7 +3203,7 @@ async function loadInforme() {
 </script>
 
 <!-- SMART COMMERCE WIZARD MODAL -->
-<div class="modal-overlay" id="modal-smart-wizard" style="display:none; z-index:9999;">
+<div class="modal-overlay" id="modal-smart-wizard" style="z-index:9999;">
   <div class="modal" style="width: 800px; max-width: 95vw; max-height: 90vh; overflow-y: auto;">
     <div class="modal-header" style="background: linear-gradient(135deg, #10b981, #3b82f6); color: white;">
       <h3><i class="fa-solid fa-store"></i> Crear Catálogo Smart Commerce</h3>
@@ -3294,7 +3294,7 @@ function openSmartCommerceWizard() {
     return;
   }
   
-  smartSelectedProducts = productosCache.filter(p => ids.includes(p.id));
+  smartSelectedProducts = productosCache.filter(p => ids.includes(String(p.id)));
   document.getElementById('smart-selected-count').innerText = smartSelectedProducts.length;
   
   let listHtml = '';
