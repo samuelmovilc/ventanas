@@ -475,6 +475,7 @@ app.get('/api/creditos/:id', async (req, res) => {
     cred.cuotas = cuotas;
     cred.total_pagado = cuotas.reduce((sum, c) => sum + parseFloat(c.pagado||0), 0) + parseFloat(cred.inicial||0);
     cred.saldo_pendiente = parseFloat(cred.total_credito) - cred.total_pagado;
+    try { cred.productos = cred.productos_cotizados ? JSON.parse(cred.productos_cotizados) : []; } catch(e) { cred.productos = []; }
     
     // Obtener abonos (movimientos)
     const [movs] = await pool.query('SELECT * FROM movimientos_caja WHERE credito_id=? AND tipo="ingreso" ORDER BY created_at DESC', [cred.id]);
