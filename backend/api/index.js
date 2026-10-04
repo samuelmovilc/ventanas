@@ -340,25 +340,40 @@ app.post('/api/ventas', async (req, res) => {
       );
     }
 
-    // Si es crédito y mandan el plan
-    if (isCredito && req.body.credito_plan) {
-      const plan = req.body.credito_plan;
-      const [credRes] = await conn.query(
-        'INSERT INTO creditos (cliente_id, venta_id, precio_contado, porcentaje_recargo, total_credito, inicial, num_cuotas, frecuencia, fecha_inicio, estado) VALUES (?,?,?,?,?,?,?,?,?,?)',
-        [clienteId, ventaId, plan.precio_contado, plan.porcentaje_recargo, total, plan.inicial||0, plan.num_cuotas, plan.frecuencia, plan.fecha_inicio, 'activo']
-      );
-      const creditoId = credRes.insertId;
-      await conn.query('UPDATE ventas SET credito_id=? WHERE id=?', [creditoId, ventaId]);
+    // Si es crédito y mandan un plan pre-aprobado (desde Cartera)
+    if (isCredito && req.body.credito_plan_id) {
+      const planId = req.body.credito_plan_id;
+      
+      // Actualizar el plan con la venta y pasarlo a activo
+      await conn.query('UPDATE creditos SET venta_id=?, estado="activo", fecha_inicio=?, total_credito=? WHERE id=?', 
+        [ventaId, fecha, total, planId]);
+      
+      await conn.query('UPDATE ventas SET credito_id=? WHERE id=?', [planId, ventaId]);
 
-      if (plan.cuotas && plan.cuotas.length) {
-        for (const c of plan.cuotas) {
-          await conn.query('INSERT INTO credito_cuotas (credito_id, numero_cuota, fecha_vence, valor, pagado) VALUES (?,?,?,?,0)', [creditoId, c.numero, c.fecha, c.valor]);
+      // Recuperar los datos del plan para generar las cuotas
+      const [planes] = await conn.query('SELECT * FROM creditos WHERE id=?', [planId]);
+      if (planes.length > 0) {
+        const plan = planes[0];
+        
+        // Generar cuotas dinámicamente según num_cuotas y frecuencia
+        let cuotas = [];
+        let num_cuotas = parseInt(plan.num_cuotas) || 1;
+        let valor_cuota = (parseFloat(plan.total_credito) - parseFloat(plan.inicial || 0)) / num_cuotas;
+        
+        for (let i = 1; i <= num_cuotas; i++) {
+           let d = new Date(fecha);
+           if (plan.frecuencia === 'mensual') d.setMonth(d.getMonth() + i);
+           else if (plan.frecuencia === 'quincenal') d.setDate(d.getDate() + (i * 15));
+           else d.setDate(d.getDate() + (i * 7)); // semanal
+           
+           await conn.query('INSERT INTO credito_cuotas (credito_id, numero_cuota, fecha_vence, valor, pagado) VALUES (?,?,?,?,0)', 
+             [planId, i, d.toISOString().split('T')[0], valor_cuota]);
         }
-      }
-
-      if (plan.inicial > 0) {
-        await conn.query('INSERT INTO movimientos_caja (tipo, categoria, monto, metodo_pago, observaciones, cliente_id, credito_id) VALUES ("ingreso", "Abono Inicial", ?, ?, ?, ?, ?)',
-          [plan.inicial, 'Efectivo', 'Abono inicial venta ' + folio, clienteId, creditoId]);
+        
+        if (parseFloat(plan.inicial) > 0) {
+          await conn.query('INSERT INTO movimientos_caja (tipo, categoria, monto, metodo_pago, observaciones, cliente_id, credito_id) VALUES ("ingreso", "Abono Inicial", ?, ?, ?, ?, ?)',
+            [plan.inicial, 'Efectivo', 'Abono inicial venta ' + folio, clienteId, planId]);
+        }
       }
     }
 
@@ -465,6 +480,19 @@ app.get('/api/creditos/:id', async (req, res) => {
     cred.abonos = movs;
     
     res.json(cred);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/creditos/plan', async (req, res) => {
+  try {
+    const { cliente_id, precio_contado, porcentaje_recargo, total_credito, inicial, num_cuotas, frecuencia } = req.body;
+    if (!cliente_id || !precio_contado || !num_cuotas) return res.status(400).json({ error: 'Faltan campos' });
+    
+    const [result] = await pool.query(
+      'INSERT INTO creditos (cliente_id, venta_id, precio_contado, porcentaje_recargo, total_credito, inicial, num_cuotas, frecuencia, fecha_inicio, estado) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, NULL, "aprobado")',
+      [cliente_id, precio_contado, porcentaje_recargo || 0, total_credito, inicial || 0, num_cuotas, frecuencia || 'quincenal']
+    );
+    res.status(201).json({ id: result.insertId, estado: 'aprobado' });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

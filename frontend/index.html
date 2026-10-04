@@ -642,9 +642,11 @@ tr.anulada-row td{opacity:.55}tr.anulada-row{background:#fff5f5!important}
       <select id="filter-cartera-estado" onchange="loadCartera()" style="padding:8px;border-radius:var(--radius-sm);border:1px solid var(--border)">
         <option value="">Todos los Estados</option>
         <option value="activo" selected>Activos (Pendientes)</option>
+        <option value="aprobado">Aprobados (Cotizados)</option>
         <option value="pagado">Pagados</option>
         <option value="anulado">Anulados</option>
       </select>
+      <button class="btn btn-primary" onclick="abrirCotizadorCredito()"><i class="fa-solid fa-calculator"></i> Cotizar Nuevo Crédito</button>
     </div>
     
     <div class="tbl-wrap">
@@ -891,15 +893,17 @@ tr.anulada-row td{opacity:.55}tr.anulada-row{background:#fff5f5!important}
 
 <div class="modal-overlay" id="modal-credito-plan">
   <div class="modal" style="max-width:500px">
-    <div class="modal-header"><span><i class="fa-solid fa-hand-holding-dollar"></i> Configurar Plan de Crédito</span><button class="modal-close" onclick="closeModal('modal-credito-plan')"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-header"><span><i class="fa-solid fa-calculator"></i> Cotizar Plan de Crédito (Pre-aprobación)</span><button class="modal-close" onclick="closeModal('modal-credito-plan')"><i class="fa-solid fa-xmark"></i></button></div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;font-size:13px">
       <div style="background:var(--surface2);padding:10px;border-radius:var(--radius-sm);border:1px solid var(--border);color:var(--text)">
-        <strong>Nota Importante:</strong> El total de la venta actual (<span id="credito-total-venta" style="color:var(--electric);font-weight:bold"></span>) será el <b>Total del Crédito</b> (con recargos ya incluidos). Si necesitas ajustar el precio para aplicar el recargo, cierra esto y edita el precio en el carrito primero.
+        <strong>Info:</strong> Genera un plan de crédito pre-aprobado. Luego ve al POS, selecciona al cliente, agrega los productos por el <b>Total del Crédito</b>, y elige pago a Crédito.
       </div>
+
+      <div class="form-group"><label>Cliente</label><select id="cotizador-cliente"></select></div>
       
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div class="form-group"><label>Precio Original (Contado)</label><input type="number" id="credito-precio-contado" placeholder="0" oninput="calcularPlanCredito()"></div>
-        <div class="form-group"><label>Recargo Calculado (%)</label><input type="text" id="credito-recargo-calc" readonly style="background:var(--bg)"></div>
+        <div class="form-group"><label>Total Crédito (Precio con Recargos)</label><input type="number" id="credito-total-venta" placeholder="0" oninput="calcularPlanCredito()"></div>
+        <div class="form-group"><label>Precio de Contado (Opcional)</label><input type="number" id="credito-precio-contado" placeholder="0" oninput="calcularPlanCredito()"></div>
       </div>
       
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
@@ -930,7 +934,7 @@ tr.anulada-row td{opacity:.55}tr.anulada-row{background:#fff5f5!important}
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-primary" onclick="confirmarPlanCredito()">Confirmar y Procesar Venta</button>
+      <button class="btn btn-primary" onclick="guardarPlanCreditoAprobado()">Aprobar Plan</button>
       <button class="btn btn-secondary" onclick="closeModal('modal-credito-plan')">Cancelar</button>
     </div>
   </div>
@@ -1251,6 +1255,7 @@ function syncPagaCon(){
 
 var creditoPlanConfirmado = null; // Guardar el plan confirmado
 async function processSale(){
+  var planCotizadoId = null;
   if(!cart.length){toast('Agrega productos al carrito','error');return}
   var total=cart.reduce(function(s,c){return s+c.subtotal},0);
   var payRows=getPaymentRows();
@@ -1260,13 +1265,28 @@ async function processSale(){
   
   var isCredito = payRows.some(function(r){return String(r.metodo).toLowerCase().includes('crédito')});
   
-  if(isCredito && !creditoPlanConfirmado){
-     document.getElementById('credito-total-venta').textContent = fmt(total);
-     document.getElementById('credito-precio-contado').value = total;
-     document.getElementById('credito-inicio').value = todayStr();
-     openModal('modal-credito-plan');
-     calcularPlanCredito();
-     return; // Interceptar venta
+  if(isCredito){
+     var clienteIdStr = document.getElementById('pos-cliente').value;
+     var clienteId = clienteIdStr ? clienteIdStr.split(' - ')[0].trim() : '222222';
+     if(clienteId === '222222') {
+         toast('Debes seleccionar un cliente válido para ventas a crédito.', 'error');
+         return;
+     }
+     showLoading('Buscando plan aprobado...');
+     try {
+         var creditosActivos = await apiGet('/creditos?cliente_id=' + clienteId + '&estado=aprobado');
+         if(!creditosActivos || creditosActivos.length === 0) {
+             hideLoading();
+             toast('Este cliente no tiene ningún plan de crédito aprobado. Ve a Cartera y crea uno primero.', 'error');
+             return;
+         }
+         planCotizadoId = creditosActivos[0].id; // Tomamos el más reciente
+         hideLoading();
+     } catch(e) {
+         hideLoading();
+         toast('Error buscando crédito: ' + e.message, 'error');
+         return;
+     }
   }
 
   var cambio=Math.max(0,paga-total);
@@ -1290,8 +1310,8 @@ async function processSale(){
         productos:cart.map(function(c){return{codigo:c.codigo,nombre:c.nombre,cantidad:c.cantidad,precioUnitario:c.precioUnitario,subtotal:c.subtotal}})
       };
 
-      if(isCredito && creditoPlanConfirmado) {
-         body.credito_plan = creditoPlanConfirmado;
+      if(isCredito && planCotizadoId) {
+         body.credito_plan_id = planCotizadoId;
       }
 
       var venta=await apiPost('/ventas', body);
@@ -2531,14 +2551,13 @@ async function deleteCliente(id) {
 var currentCuotasSimuladas = [];
 
 function calcularPlanCredito() {
-  var totalCredito = cart.reduce(function(s,c){return s+c.subtotal},0);
+  var totalCredito = parseFloat(document.getElementById('credito-total-venta').value) || 0;
   var precioContado = parseFloat(document.getElementById('credito-precio-contado').value) || totalCredito;
   
   var recargoPorcentaje = 0;
   if(precioContado > 0 && totalCredito > precioContado) {
     recargoPorcentaje = ((totalCredito - precioContado) / precioContado) * 100;
   }
-  document.getElementById('credito-recargo-calc').value = recargoPorcentaje.toFixed(2) + '%';
   
   var inicial = parseFloat(document.getElementById('credito-inicial').value) || 0;
   var saldo = Math.max(0, totalCredito - inicial);
@@ -2570,32 +2589,69 @@ function calcularPlanCredito() {
   document.getElementById('credito-cuotas-body').innerHTML = tbody;
 }
 
-function confirmarPlanCredito() {
-  var totalCredito = cart.reduce(function(s,c){return s+c.subtotal},0);
+async function abrirCotizadorCredito() {
+  // Llenar combo de clientes igual que en POS
+  document.getElementById('cotizador-cliente').innerHTML = document.getElementById('pos-cliente').innerHTML;
+  
+  document.getElementById('credito-total-venta').value = '';
+  document.getElementById('credito-precio-contado').value = '';
+  document.getElementById('credito-inicial').value = '';
+  document.getElementById('credito-saldo').value = '';
+  document.getElementById('credito-inicio').value = todayStr();
+  document.getElementById('credito-cuotas-body').innerHTML = '';
+  currentCuotasSimuladas = [];
+  
+  openModal('modal-credito-plan');
+}
+
+async function guardarPlanCreditoAprobado() {
+  var clienteIdStr = document.getElementById('cotizador-cliente').value;
+  var clienteId = clienteIdStr ? clienteIdStr.split(' - ')[0].trim() : '222222';
+  if(clienteId === '222222') {
+     toast('Debes seleccionar un cliente válido.', 'error');
+     return;
+  }
+  
+  var totalCredito = parseFloat(document.getElementById('credito-total-venta').value) || 0;
+  if(totalCredito <= 0) {
+      toast('El total del crédito debe ser mayor a 0', 'error'); return;
+  }
   var pContado = parseFloat(document.getElementById('credito-precio-contado').value) || totalCredito;
-  var recargo = parseFloat(document.getElementById('credito-recargo-calc').value) || 0;
+  
+  var recargo = 0;
+  if(pContado > 0 && totalCredito > pContado) {
+    recargo = ((totalCredito - pContado) / pContado) * 100;
+  }
+  
   var inicial = parseFloat(document.getElementById('credito-inicial').value) || 0;
   var cuotas = parseInt(document.getElementById('credito-cuotas').value) || 1;
   var frec = document.getElementById('credito-frecuencia').value;
-  var fInicio = document.getElementById('credito-inicio').value;
 
   if (currentCuotasSimuladas.length === 0) {
-     toast('Revisa la configuración del plan', 'error');
+     toast('Por favor calcula el plan antes de aprobar', 'error');
      return;
   }
-
-  creditoPlanConfirmado = {
-     precio_contado: pContado,
-     porcentaje_recargo: recargo,
-     inicial: inicial,
-     num_cuotas: cuotas,
-     frecuencia: frec,
-     fecha_inicio: fInicio,
-     cuotas: currentCuotasSimuladas
-  };
   
-  closeModal('modal-credito-plan');
-  processSale(); // Reanudar proceso
+  showLoading('Guardando plan pre-aprobado...');
+  try {
+     var body = {
+         cliente_id: clienteId,
+         precio_contado: pContado,
+         porcentaje_recargo: recargo,
+         total_credito: totalCredito,
+         inicial: inicial,
+         num_cuotas: cuotas,
+         frecuencia: frec
+     };
+     await apiPost('/creditos/plan', body);
+     hideLoading();
+     toast('Plan pre-aprobado exitosamente', 'success');
+     closeModal('modal-credito-plan');
+     loadCartera();
+  } catch(e) {
+     hideLoading();
+     toast('Error guardando plan: ' + e.message, 'error');
+  }
 }
 
 // ════════════════════════════════
@@ -2639,7 +2695,10 @@ async function loadCartera() {
         '<td style="color:var(--green)">' + fmt(c.total_pagado) + '</td>' +
         '<td style="color:var(--red)">' + fmt(c.saldo_pendiente) + '</td>' +
         '<td><span ' + badgeClass + '>' + (c.estado||'').toUpperCase() + '</span></td>' +
-        '<td><button class="btn btn-secondary btn-xs" onclick="verDetalleCredito(' + c.id + ')"><i class="fa-solid fa-eye"></i> Ver / Abonar</button></td>' +
+        '<td>' +
+           '<button class="btn btn-secondary btn-xs" onclick="verDetalleCredito(' + c.id + ')"><i class="fa-solid fa-eye"></i> Detalle</button>' +
+           (c.estado === 'activo' ? ' <button class="btn btn-primary btn-xs" onclick="abrirAbonoRapido(' + c.id + ')"><i class="fa-solid fa-money-bill-wave"></i> Abonar</button>' : '') +
+        '</td>' +
       '</tr>';
     });
     
@@ -2691,6 +2750,14 @@ async function verDetalleCredito(id) {
     toast('Error: ' + e.message, 'error');
   }
   hideLoading();
+}
+
+async function abrirAbonoRapido(creditoId) {
+  await verDetalleCredito(creditoId);
+  setTimeout(function() {
+    var inputMonto = document.getElementById('cartera-abono-monto');
+    if(inputMonto) inputMonto.focus();
+  }, 300);
 }
 
 async function registrarAbonoCartera() {
