@@ -31,7 +31,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:13
 .btn-salir{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:5px 12px;border-radius:var(--radius-sm);cursor:pointer;font-size:12px;font-weight:600;display:flex;align-items:center;gap:5px;transition:all .2s}
 .btn-salir:hover{background:rgba(229,57,53,.7)}
 .main-content{padding:14px 18px}
-.module{display:none}.module.active{display:block}
+.module{display:none;max-width:1400px;margin:0 auto;width:100%}
+#module-pos{max-width:100%}
+.module.active{display:block}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
 .card-header{background:linear-gradient(135deg,var(--electric) 0%,#0052CC 100%);color:#fff;padding:8px 14px;border-radius:var(--radius) var(--radius) 0 0;font-size:11.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;display:flex;align-items:center;gap:7px}
 .pos-layout{display:grid;grid-template-columns:1fr 420px;gap:14px;height:calc(100vh - 82px)}
