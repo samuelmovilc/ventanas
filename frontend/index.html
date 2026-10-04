@@ -422,7 +422,9 @@ tr.anulada-row td{opacity:.55}tr.anulada-row{background:#fff5f5!important}
   <nav class="app-tabs">
     <button class="tab-btn active" onclick="showModule('pos')" id="tab-pos"><i class="fa-solid fa-cash-register"></i> POS</button>
     <button class="tab-btn" onclick="showModule('caja')" id="tab-caja"><i class="fa-solid fa-coins"></i> Caja</button>
+    <button class="tab-btn" onclick="showModule('cartera')" id="tab-cartera"><i class="fa-solid fa-wallet"></i> Cartera</button>
     <button class="tab-btn" onclick="showModule('productos')" id="tab-productos"><i class="fa-solid fa-boxes-stacked"></i> Productos</button>
+    <button class="tab-btn" onclick="showModule('finanzas')" id="tab-finanzas"><i class="fa-solid fa-chart-pie"></i> Finanzas</button>
     <button class="tab-btn" onclick="showModule('config')" id="tab-config"><i class="fa-solid fa-gear"></i> Config</button>
   </nav>
   <button class="btn-salir" onclick="salir()"><i class="fa-solid fa-right-from-bracket"></i> Salir</button>
@@ -467,7 +469,7 @@ tr.anulada-row td{opacity:.55}tr.anulada-row{background:#fff5f5!important}
             <button class="btn btn-secondary btn-xs" onclick="addPayRow()"><i class="fa-solid fa-plus"></i> Agregar</button>
           </div>
           <div class="multi-pay-list" id="multi-pay-list"></div>
-          <div class="form-row"><label>Cliente</label><input type="text" id="pos-cliente" value="222222 - CLIENTE POS"></div>
+          <div class="form-row"><label>Cliente</label><select id="pos-cliente"></select></div>
           <div class="form-row"><label>Obs.</label><input type="text" id="pos-obs" placeholder="Observaciones..."></div>
           <div class="form-row"><label>Paga con</label><input type="number" id="paga-con" placeholder="0.00" min="0" step="0.01" readonly style="background:var(--bg);color:var(--text-mid);cursor:not-allowed"></div>
           <div class="change-box"><span id="lbl-cambio">Cambio / Vueltas</span><strong id="cambio-val">$0.00</strong></div>
@@ -612,11 +614,151 @@ tr.anulada-row td{opacity:.55}tr.anulada-row{background:#fff5f5!important}
         <p style="font-size:11px;color:var(--text-light);margin-top:7px;line-height:1.4">Descarga el historial completo de ventas de la base de datos (todas las fechas).</p>
       </div>
     </div>
+    <div class="card">
+      <div class="card-header"><i class="fa-solid fa-users"></i> Clientes</div>
+      <div class="config-section">
+        <button class="btn btn-primary" onclick="openClientesModal()" style="width:100%;justify-content:center;"><i class="fa-solid fa-users-gear"></i> Gestionar Clientes</button>
+        <p style="font-size:11px;color:var(--text-light);margin-top:7px;line-height:1.4">Registra y edita los clientes para asignarles ventas o cr&eacute;ditos.</p>
+      </div>
+    </div>
+  </div>
   </div>
 </div>
 </main>
 
+<!-- ═══ CARTERA MODULE ═══ -->
+<main class="module" id="module-cartera">
+<div class="top-bar">
+  <h2><i class="fa-solid fa-wallet"></i> Gestión de Cartera y Créditos</h2>
+</div>
+<div class="grid-layout">
+  <div class="card" style="grid-column:1/-1">
+    <div style="display:flex;gap:10px;margin-bottom:15px;align-items:center">
+      <div class="search-bar" style="flex:1;background:transparent;border:none;padding:0">
+        <input type="text" id="search-cartera" placeholder="🔍 Buscar por cliente..." oninput="loadCartera()" style="width:100%">
+      </div>
+      <select id="filter-cartera-estado" onchange="loadCartera()" style="padding:8px;border-radius:var(--radius-sm);border:1px solid var(--border)">
+        <option value="">Todos los Estados</option>
+        <option value="activo" selected>Activos (Pendientes)</option>
+        <option value="pagado">Pagados</option>
+        <option value="anulado">Anulados</option>
+      </select>
+    </div>
+    
+    <div class="tbl-wrap">
+      <table style="font-size:12px">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Cliente</th>
+            <th>Fecha Inicio</th>
+            <th>Venta Asociada</th>
+            <th>Total Crédito</th>
+            <th>Abonado</th>
+            <th>Saldo Pendiente</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="cartera-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</main>
+
+<!-- ═══ FINANZAS MODULE ═══ -->
+<main class="module" id="module-finanzas">
+<div class="top-bar">
+  <h2><i class="fa-solid fa-chart-pie"></i> Finanzas e Informe de Caja</h2>
+</div>
+<div class="grid-layout">
+  
+  <!-- Formulario de Egresos / Otros Ingresos -->
+  <div class="card">
+    <div class="card-header"><i class="fa-solid fa-money-bill-transfer"></i> Registrar Movimiento</div>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-top:15px">
+      <div class="form-group"><label>Tipo de Movimiento</label>
+        <select id="fin-tipo">
+          <option value="egreso">Egreso (Gasto)</option>
+          <option value="ingreso">Ingreso (Otro)</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Categoría</label><input type="text" id="fin-categoria" placeholder="Ej. Arriendo, Energía, Desperdicios" list="fin-categorias-list">
+        <datalist id="fin-categorias-list"><option value="Arriendo"><option value="Energía"><option value="Nómina"><option value="Servicios"><option value="Venta extra"></datalist>
+      </div>
+      <div class="form-group"><label>Monto</label><input type="number" id="fin-monto" placeholder="0.00"></div>
+      <div class="form-group"><label>Método de Pago</label><select id="fin-metodo"></select></div>
+      <div class="form-group"><label>Observaciones</label><input type="text" id="fin-obs" placeholder="Opcional"></div>
+      <button class="btn btn-primary" onclick="registrarMovimiento()" style="justify-content:center"><i class="fa-solid fa-floppy-disk"></i> Guardar Movimiento</button>
+    </div>
+  </div>
+
+  <!-- Informe Consolidado -->
+  <div class="card" style="grid-column: span 2">
+    <div class="card-header" style="justify-content:space-between">
+      <span><i class="fa-solid fa-file-invoice-dollar"></i> Informe Consolidado</span>
+      <div style="display:flex;gap:10px;font-size:12px;font-weight:normal">
+        <div style="display:flex;align-items:center;gap:5px"><label>Desde:</label><input type="date" id="fin-date-from" onchange="loadInforme()" style="padding:4px"></div>
+        <div style="display:flex;align-items:center;gap:5px"><label>Hasta:</label><input type="date" id="fin-date-to" onchange="loadInforme()" style="padding:4px"></div>
+        <button class="btn btn-secondary btn-sm" onclick="loadInforme()"><i class="fa-solid fa-rotate"></i></button>
+      </div>
+    </div>
+    
+    <div id="fin-informe-content" style="margin-top:15px;display:flex;flex-direction:column;gap:20px">
+      <div style="color:var(--text-light);font-size:13px;text-align:center;padding:20px">Cargando informe...</div>
+    </div>
+  </div>
+
+</div>
+</main>
+
 <!-- MODALES -->
+<div class="modal-overlay" id="modal-cartera-detalle">
+  <div class="modal" style="max-width:800px">
+    <div class="modal-header"><span><i class="fa-solid fa-list"></i> Detalle del Crédito <span id="cartera-det-id"></span></span><button class="modal-close" onclick="closeModal('modal-cartera-detalle')"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body" style="display:grid;grid-template-columns:1fr 300px;gap:20px;font-size:12px">
+      <!-- Info y Cuotas -->
+      <div>
+        <div style="background:var(--surface2);padding:10px;border-radius:var(--radius-sm);margin-bottom:15px;display:flex;flex-wrap:wrap;gap:15px">
+          <div><label style="color:var(--text-light);font-size:11px">Cliente</label><div id="cartera-det-cliente" style="font-weight:bold"></div></div>
+          <div><label style="color:var(--text-light);font-size:11px">Frecuencia</label><div id="cartera-det-frecuencia" style="text-transform:capitalize"></div></div>
+          <div><label style="color:var(--text-light);font-size:11px">Venta</label><div id="cartera-det-venta"></div></div>
+        </div>
+        
+        <h4 style="margin-bottom:8px;color:var(--electric)"><i class="fa-solid fa-calendar-days"></i> Tabla de Cuotas</h4>
+        <div class="tbl-wrap" style="max-height:250px;border:1px solid var(--border)">
+          <table style="width:100%;text-align:left">
+            <thead style="background:var(--surface2)">
+              <tr><th>N°</th><th>Vencimiento</th><th>Valor</th><th>Pagado</th><th>Estado</th></tr>
+            </thead>
+            <tbody id="cartera-det-cuotas"></tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- Totales y Abono -->
+      <div style="display:flex;flex-direction:column;gap:15px">
+        <div class="card" style="margin:0;padding:12px;background:var(--bg)">
+          <div style="display:flex;justify-content:space-between;margin-bottom:5px"><span>Total Crédito:</span><strong id="cartera-det-total"></strong></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:5px"><span>Total Pagado:</span><strong id="cartera-det-pagado" style="color:var(--green)"></strong></div>
+          <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:5px;margin-top:5px">
+            <span>Saldo:</span><strong id="cartera-det-saldo" style="color:var(--red);font-size:14px"></strong>
+          </div>
+        </div>
+        
+        <div class="card" style="margin:0;padding:12px;background:var(--surface2)">
+          <h4 style="margin-bottom:10px;color:var(--electric)"><i class="fa-solid fa-money-bill-transfer"></i> Registrar Abono</h4>
+          <div class="form-group"><label>Monto a Abonar</label><input type="number" id="cartera-abono-monto" placeholder="0.00"></div>
+          <div class="form-group"><label>Método de Pago</label><select id="cartera-abono-metodo"></select></div>
+          <div class="form-group"><label>Observaciones</label><input type="text" id="cartera-abono-obs" placeholder="Opcional"></div>
+          <button class="btn btn-primary" onclick="registrarAbonoCartera()" style="width:100%;justify-content:center"><i class="fa-solid fa-check"></i> Aplicar Abono</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-venta">
   <div class="modal" style="max-width:620px">
     <div class="modal-header"><span><i class="fa-solid fa-receipt"></i> Detalle de venta</span><button class="modal-close" onclick="closeModal('modal-venta')"><i class="fa-solid fa-xmark"></i></button></div>
@@ -704,6 +846,90 @@ tr.anulada-row td{opacity:.55}tr.anulada-row{background:#fff5f5!important}
     <div class="modal-footer">
       <button class="btn btn-danger" id="confirm-ok">Confirmar</button>
       <button class="btn btn-secondary" onclick="closeModal('modal-confirm')">Cancelar</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-clientes">
+  <div class="modal" style="max-width:700px">
+    <div class="modal-header"><span><i class="fa-solid fa-users-gear"></i> Gestión de Clientes</span><button class="modal-close" onclick="closeModal('modal-clientes')"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:15px">
+      <div style="display:grid;grid-template-columns:1fr 250px;gap:15px;align-items:start" class="clientes-layout">
+        <!-- Formulario -->
+        <div style="background:var(--surface2);padding:12px;border-radius:var(--radius);border:1px solid var(--border)">
+          <h4 style="margin-bottom:10px;color:var(--electric);font-size:12px"><i class="fa-solid fa-user-plus"></i> <span id="form-cliente-title">Nuevo Cliente</span></h4>
+          <input type="hidden" id="cli-original-id">
+          <div class="form-group" style="margin-bottom:8px"><label>Cédula/NIT *</label><input type="text" id="cli-id" placeholder="Ej: 123456789"></div>
+          <div class="form-group" style="margin-bottom:8px"><label>Nombre *</label><input type="text" id="cli-nombre" placeholder="Nombre completo"></div>
+          <div class="form-group" style="margin-bottom:8px"><label>Teléfono</label><input type="text" id="cli-telefono" placeholder="Opcional"></div>
+          <div class="form-group" style="margin-bottom:12px"><label>Dirección</label><input type="text" id="cli-direccion" placeholder="Opcional"></div>
+          <div style="display:flex;gap:5px">
+            <button class="btn btn-primary" onclick="saveCliente()" style="flex:1"><i class="fa-solid fa-floppy-disk"></i> Guardar</button>
+            <button class="btn btn-secondary" onclick="resetClienteForm()"><i class="fa-solid fa-eraser"></i></button>
+          </div>
+        </div>
+        <!-- Lista -->
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div class="search-bar" style="padding:0;border:none;background:transparent">
+            <input type="text" id="search-cliente" placeholder="🔍 Buscar cliente..." oninput="loadClientesLista()" style="width:100%">
+          </div>
+          <div class="tbl-wrap" style="max-height:300px;border:1px solid var(--border);border-radius:var(--radius-sm)">
+            <table style="font-size:11px">
+              <thead><tr><th>Cédula/NIT</th><th>Nombre</th><th>Teléfono</th><th></th></tr></thead>
+              <tbody id="clientes-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-clientes')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-credito-plan">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header"><span><i class="fa-solid fa-hand-holding-dollar"></i> Configurar Plan de Crédito</span><button class="modal-close" onclick="closeModal('modal-credito-plan')"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;font-size:13px">
+      <div style="background:var(--surface2);padding:10px;border-radius:var(--radius-sm);border:1px solid var(--border);color:var(--text)">
+        <strong>Nota Importante:</strong> El total de la venta actual (<span id="credito-total-venta" style="color:var(--electric);font-weight:bold"></span>) será el <b>Total del Crédito</b> (con recargos ya incluidos). Si necesitas ajustar el precio para aplicar el recargo, cierra esto y edita el precio en el carrito primero.
+      </div>
+      
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="form-group"><label>Precio Original (Contado)</label><input type="number" id="credito-precio-contado" placeholder="0" oninput="calcularPlanCredito()"></div>
+        <div class="form-group"><label>Recargo Calculado (%)</label><input type="text" id="credito-recargo-calc" readonly style="background:var(--bg)"></div>
+      </div>
+      
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="form-group"><label>Abono Inicial</label><input type="number" id="credito-inicial" placeholder="0" oninput="calcularPlanCredito()"></div>
+        <div class="form-group"><label>Saldo a Financiar</label><input type="text" id="credito-saldo" readonly style="background:var(--bg)"></div>
+      </div>
+      
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+        <div class="form-group"><label>N° Cuotas</label><input type="number" id="credito-cuotas" value="4" min="1" oninput="calcularPlanCredito()"></div>
+        <div class="form-group">
+          <label>Frecuencia</label>
+          <select id="credito-frecuencia" onchange="calcularPlanCredito()">
+            <option value="semanal">Semanal</option>
+            <option value="quincenal">Quincenal</option>
+            <option value="mensual">Mensual</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Inicio</label><input type="date" id="credito-inicio" onchange="calcularPlanCredito()"></div>
+      </div>
+      
+      <div style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;margin-top:10px">
+        <table style="width:100%;font-size:11px;text-align:left;border-collapse:collapse">
+          <thead style="background:var(--surface2)">
+            <tr><th style="padding:6px;border-bottom:1px solid var(--border)">Cuota</th><th style="padding:6px;border-bottom:1px solid var(--border)">Fecha</th><th style="padding:6px;border-bottom:1px solid var(--border)">Valor</th></tr>
+          </thead>
+          <tbody id="credito-cuotas-body"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="confirmarPlanCredito()">Confirmar y Procesar Venta</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-credito-plan')">Cancelar</button>
     </div>
   </div>
 </div>
@@ -809,6 +1035,7 @@ async function initApp(){
     if(cfg.metodos_pago&&typeof cfg.metodos_pago==='string')configCache.metodos_pago=JSON.parse(cfg.metodos_pago);
   }catch(e){toast('Error cargando config: '+e.message,'error')}
   await loadProductos();
+  await loadClientesDropdown();
   loadConfigUI();
   document.getElementById('caja-date-from').value=todayStr();
   document.getElementById('caja-date-to').value=todayStr();
@@ -857,6 +1084,14 @@ function showModule(n){
   if(n==='productos'){loadProductos().then(function(){renderProductsTable();renderStats()})}
   if(n==='caja')loadCajaVentas();
   if(n==='config')loadConfigUI();
+  if(n==='cartera')loadCartera();
+  if(n==='finanzas') {
+     document.getElementById('fin-date-from').value = todayStr();
+     document.getElementById('fin-date-to').value = todayStr();
+     var selM = document.getElementById('fin-metodo');
+     selM.innerHTML = (configCache.metodos_pago||[]).filter(function(m){return !m.toLowerCase().includes('crédito')}).map(function(m){return '<option value="'+m+'">'+m+'</option>'}).join('');
+     loadInforme();
+  }
 }
 
 /* ═══ POS ═══ */
@@ -1012,6 +1247,7 @@ function syncPagaCon(){
   calcChange();
 }
 
+var creditoPlanConfirmado = null; // Guardar el plan confirmado
 async function processSale(){
   if(!cart.length){toast('Agrega productos al carrito','error');return}
   var total=cart.reduce(function(s,c){return s+c.subtotal},0);
@@ -1019,6 +1255,18 @@ async function processSale(){
   if(!payRows.length){toast('Agrega al menos un método de pago con monto','error');return}
   var paga=parseFloat(document.getElementById('paga-con').value)||payRows.reduce(function(s,r){return s+r.monto},0);
   if(paga < total - 0.01){toast('Monto insuficiente. Faltan '+fmt(total-paga),'error');return}
+  
+  var isCredito = payRows.some(function(r){return String(r.metodo).toLowerCase().includes('crédito')});
+  
+  if(isCredito && !creditoPlanConfirmado){
+     document.getElementById('credito-total-venta').textContent = fmt(total);
+     document.getElementById('credito-precio-contado').value = total;
+     document.getElementById('credito-inicio').value = todayStr();
+     openModal('modal-credito-plan');
+     calcularPlanCredito();
+     return; // Interceptar venta
+  }
+
   var cambio=Math.max(0,paga-total);
   var cliente=document.getElementById('pos-cliente').value||'222222 - CLIENTE POS';
   var obs=document.getElementById('pos-obs').value;
@@ -1030,17 +1278,25 @@ async function processSale(){
       var ventas=await apiGet('/ventas?fecha='+localDateStr(now));
       var folio='VENTA-'+ds+'-'+String(ventas.length+1).padStart(3,'0');
       var metodosStr=payRows.map(function(r){return r.metodo+': '+fmt(r.monto)}).join(' | ');
-      var venta=await apiPost('/ventas',{
+      
+      var body = {
         folio:folio,fecha:localDateStr(now),
         hora:now.toTimeString().slice(0,8),
         cliente:cliente,observaciones:obs,
         metodo_pago:metodosStr,metodos_pago:payRows,
         total:total,cambio:cambio,
         productos:cart.map(function(c){return{codigo:c.codigo,nombre:c.nombre,cantidad:c.cantidad,precioUnitario:c.precioUnitario,subtotal:c.subtotal}})
-      });
+      };
+
+      if(isCredito && creditoPlanConfirmado) {
+         body.credito_plan = creditoPlanConfirmado;
+      }
+
+      var venta=await apiPost('/ventas', body);
       currentSaleForReprint={folio:folio,fecha:localDateStr(now),hora:now.toTimeString().slice(0,8),cliente:cliente,observaciones:obs,metodoPago:metodosStr,metodosPago:payRows,total:total,cambio:cambio,productos:cart.map(function(c){return Object.assign({},c)})};
       printTicket(currentSaleForReprint);
       clearCart();document.getElementById('pos-obs').value='';
+      creditoPlanConfirmado = null; // Limpiar plan
       await loadProductos();
       toast(folio+' — Cambio: '+fmt(cambio),'success',5000);
     }catch(e){toast('Error procesando venta: '+e.message,'error')}
@@ -2152,6 +2408,468 @@ async function exportarTodasLasVentas(){
   } catch(e){
     hideLoading();
     toast('Error exportando historial','error');
+  }
+}
+// ════════════════════════════════
+// CLIENTES (CRUD)
+// ════════════════════════════════
+function openClientesModal() {
+  document.getElementById('modal-clientes').classList.add('open');
+  resetClienteForm();
+  loadClientesLista();
+}
+
+async function loadClientesDropdown() {
+  try {
+    var clientes = await apiGet('/clientes');
+    var select = document.getElementById('pos-cliente');
+    var html = '';
+    clientes.forEach(function(c) {
+      html += '<option value="' + c.id + ' - ' + c.nombre.replace(/"/g,'&quot;') + '">' + c.id + ' - ' + c.nombre + '</option>';
+    });
+    select.innerHTML = html;
+    select.value = '222222 - CLIENTE POS'; // Por defecto
+  } catch(e) {
+    console.error('Error cargando clientes POS:', e);
+  }
+}
+
+async function loadClientesLista() {
+  var busqueda = document.getElementById('search-cliente').value.trim();
+  var qs = busqueda ? '?busqueda=' + encodeURIComponent(busqueda) : '';
+  try {
+    var clientes = await apiGet('/clientes' + qs);
+    var html = '';
+    clientes.forEach(function(c) {
+      html += '<tr>' +
+        '<td><b>' + c.id + '</b></td>' +
+        '<td>' + c.nombre + '</td>' +
+        '<td>' + (c.telefono || '') + '</td>' +
+        '<td style="text-align:right">' +
+          '<button class="btn btn-secondary btn-xs" style="padding:2px 6px;margin-right:4px" onclick="editCliente(\'' + c.id + '\', \'' + (c.nombre||'').replace(/'/g,"\\'") + '\', \'' + (c.telefono||'') + '\', \'' + (c.direccion||'').replace(/'/g,"\\'") + '\')"><i class="fa-solid fa-pen"></i></button>' +
+          (c.id !== '222222' ? '<button class="btn btn-danger btn-xs" style="padding:2px 6px" onclick="deleteCliente(\'' + c.id + '\')"><i class="fa-solid fa-trash"></i></button>' : '') +
+        '</td>' +
+      '</tr>';
+    });
+    document.getElementById('clientes-body').innerHTML = html;
+  } catch (e) {
+    toast('Error al cargar clientes: ' + e.message, 'error');
+  }
+}
+
+function resetClienteForm() {
+  document.getElementById('cli-original-id').value = '';
+  document.getElementById('cli-id').value = '';
+  document.getElementById('cli-id').disabled = false;
+  document.getElementById('cli-nombre').value = '';
+  document.getElementById('cli-telefono').value = '';
+  document.getElementById('cli-direccion').value = '';
+  document.getElementById('form-cliente-title').textContent = 'Nuevo Cliente';
+}
+
+function editCliente(id, nombre, telefono, direccion) {
+  document.getElementById('cli-original-id').value = id;
+  document.getElementById('cli-id').value = id;
+  document.getElementById('cli-id').disabled = true; // No permitir cambiar la cédula al editar
+  document.getElementById('cli-nombre').value = nombre || '';
+  document.getElementById('cli-telefono').value = telefono || '';
+  document.getElementById('cli-direccion').value = direccion || '';
+  document.getElementById('form-cliente-title').textContent = 'Editar Cliente';
+}
+
+async function saveCliente() {
+  var origId = document.getElementById('cli-original-id').value;
+  var id = document.getElementById('cli-id').value.trim();
+  var nombre = document.getElementById('cli-nombre').value.trim();
+  var telefono = document.getElementById('cli-telefono').value.trim();
+  var direccion = document.getElementById('cli-direccion').value.trim();
+
+  if (!id || !nombre) {
+    toast('Cédula/NIT y Nombre son obligatorios', 'error');
+    return;
+  }
+
+  showLoading('Guardando cliente...');
+  try {
+    if (origId) {
+      // Actualizar
+      await apiPut('/clientes/' + origId, { nombre: nombre, telefono: telefono, direccion: direccion });
+      toast('Cliente actualizado', 'success');
+    } else {
+      // Crear
+      await apiPost('/clientes', { id: id, nombre: nombre, telefono: telefono, direccion: direccion });
+      toast('Cliente creado', 'success');
+    }
+    resetClienteForm();
+    loadClientesLista();
+    loadClientesDropdown();
+  } catch (e) {
+    toast('Error: ' + e.message, 'error');
+  }
+  hideLoading();
+}
+
+async function deleteCliente(id) {
+  confirmDlg('Eliminar Cliente', '¿Estás seguro de eliminar el cliente ' + id + '?', async function() {
+    showLoading('Eliminando...');
+    try {
+      await apiDelete('/clientes/' + id);
+      toast('Cliente eliminado', 'success');
+      loadClientesLista();
+      loadClientesDropdown();
+    } catch (e) {
+      toast('Error: ' + e.message, 'error');
+    }
+    hideLoading();
+  });
+}
+// ════════════════════════════════
+// SIMULADOR DE CRÉDITO
+// ════════════════════════════════
+var currentCuotasSimuladas = [];
+
+function calcularPlanCredito() {
+  var totalCredito = cart.reduce(function(s,c){return s+c.subtotal},0);
+  var precioContado = parseFloat(document.getElementById('credito-precio-contado').value) || totalCredito;
+  
+  var recargoPorcentaje = 0;
+  if(precioContado > 0 && totalCredito > precioContado) {
+    recargoPorcentaje = ((totalCredito - precioContado) / precioContado) * 100;
+  }
+  document.getElementById('credito-recargo-calc').value = recargoPorcentaje.toFixed(2) + '%';
+  
+  var inicial = parseFloat(document.getElementById('credito-inicial').value) || 0;
+  var saldo = Math.max(0, totalCredito - inicial);
+  document.getElementById('credito-saldo').value = fmt(saldo);
+  
+  var nCuotas = parseInt(document.getElementById('credito-cuotas').value) || 1;
+  var frec = document.getElementById('credito-frecuencia').value;
+  var fInicio = document.getElementById('credito-inicio').value;
+  
+  if(!fInicio) return;
+  
+  var valorCuota = saldo / nCuotas;
+  var tbody = '';
+  currentCuotasSimuladas = [];
+  
+  var fecha = new Date(fInicio + 'T12:00:00Z');
+  
+  for(var i=1; i<=nCuotas; i++) {
+    var fStr = localDateStr(fecha);
+    currentCuotasSimuladas.push({ numero: i, fecha: fStr, valor: valorCuota });
+    tbody += '<tr><td>'+i+'</td><td>'+fmtDate(fStr)+'</td><td>'+fmt(valorCuota)+'</td></tr>';
+    
+    // Avanzar fecha
+    if(frec === 'semanal') fecha.setDate(fecha.getDate() + 7);
+    else if(frec === 'quincenal') fecha.setDate(fecha.getDate() + 15);
+    else if(frec === 'mensual') fecha.setMonth(fecha.getMonth() + 1);
+  }
+  
+  document.getElementById('credito-cuotas-body').innerHTML = tbody;
+}
+
+function confirmarPlanCredito() {
+  var totalCredito = cart.reduce(function(s,c){return s+c.subtotal},0);
+  var pContado = parseFloat(document.getElementById('credito-precio-contado').value) || totalCredito;
+  var recargo = parseFloat(document.getElementById('credito-recargo-calc').value) || 0;
+  var inicial = parseFloat(document.getElementById('credito-inicial').value) || 0;
+  var cuotas = parseInt(document.getElementById('credito-cuotas').value) || 1;
+  var frec = document.getElementById('credito-frecuencia').value;
+  var fInicio = document.getElementById('credito-inicio').value;
+
+  if (currentCuotasSimuladas.length === 0) {
+     toast('Revisa la configuración del plan', 'error');
+     return;
+  }
+
+  creditoPlanConfirmado = {
+     precio_contado: pContado,
+     porcentaje_recargo: recargo,
+     inicial: inicial,
+     num_cuotas: cuotas,
+     frecuencia: frec,
+     fecha_inicio: fInicio,
+     cuotas: currentCuotasSimuladas
+  };
+  
+  closeModal('modal-credito-plan');
+  processSale(); // Reanudar proceso
+}
+
+// ════════════════════════════════
+// MÓDULO DE CARTERA
+// ════════════════════════════════
+var currentCarteraId = null;
+
+async function loadCartera() {
+  var search = document.getElementById('search-cartera').value.trim().toLowerCase();
+  var estado = document.getElementById('filter-cartera-estado').value;
+  
+  var qs = [];
+  if (estado) qs.push('estado=' + encodeURIComponent(estado));
+  
+  try {
+    var url = '/creditos' + (qs.length ? '?' + qs.join('&') : '');
+    var creditos = await apiGet(url);
+    
+    // Filtrado local por cliente (si no se hizo en backend)
+    if (search) {
+      creditos = creditos.filter(function(c) {
+        return (c.cliente_nombre && c.cliente_nombre.toLowerCase().includes(search)) || 
+               (c.cliente_id && c.cliente_id.toLowerCase().includes(search)) ||
+               (c.venta_id && String(c.venta_id).includes(search));
+      });
+    }
+    
+    var html = '';
+    creditos.forEach(function(c) {
+      var badgeClass = '';
+      if(c.estado === 'activo') badgeClass = 'style="background:var(--electric);color:#fff;padding:2px 6px;border-radius:4px;font-size:10px"';
+      else if(c.estado === 'pagado') badgeClass = 'style="background:var(--green);color:#fff;padding:2px 6px;border-radius:4px;font-size:10px"';
+      else badgeClass = 'style="background:var(--text-light);color:#fff;padding:2px 6px;border-radius:4px;font-size:10px"';
+
+      html += '<tr>' +
+        '<td><b>CR-' + c.id + '</b></td>' +
+        '<td>' + c.cliente_id + ' - ' + (c.cliente_nombre || '') + '</td>' +
+        '<td>' + fmtDate(c.fecha_inicio) + '</td>' +
+        '<td>Venta ' + (c.venta_id || '') + '</td>' +
+        '<td>' + fmt(c.total_credito) + '</td>' +
+        '<td style="color:var(--green)">' + fmt(c.total_pagado) + '</td>' +
+        '<td style="color:var(--red)">' + fmt(c.saldo_pendiente) + '</td>' +
+        '<td><span ' + badgeClass + '>' + (c.estado||'').toUpperCase() + '</span></td>' +
+        '<td><button class="btn btn-secondary btn-xs" onclick="verDetalleCredito(' + c.id + ')"><i class="fa-solid fa-eye"></i> Ver / Abonar</button></td>' +
+      '</tr>';
+    });
+    
+    document.getElementById('cartera-body').innerHTML = html;
+  } catch(e) {
+    toast('Error cargando cartera: ' + e.message, 'error');
+  }
+}
+
+async function verDetalleCredito(id) {
+  showLoading('Cargando detalle...');
+  try {
+    var cred = await apiGet('/creditos/' + id);
+    currentCarteraId = cred.id;
+    
+    document.getElementById('cartera-det-id').textContent = 'CR-' + cred.id;
+    document.getElementById('cartera-det-cliente').textContent = cred.cliente_id + ' - ' + (cred.cliente_nombre || '');
+    document.getElementById('cartera-det-frecuencia').textContent = cred.frecuencia;
+    document.getElementById('cartera-det-venta').textContent = cred.venta_id || 'N/A';
+    
+    document.getElementById('cartera-det-total').textContent = fmt(cred.total_credito);
+    document.getElementById('cartera-det-pagado').textContent = fmt(cred.total_pagado);
+    document.getElementById('cartera-det-saldo').textContent = fmt(cred.saldo_pendiente);
+    
+    var cuotasHtml = '';
+    (cred.cuotas || []).forEach(function(c) {
+       var debe = parseFloat(c.valor) - parseFloat(c.pagado);
+       var rowStyle = debe <= 0 ? 'color:var(--text-light);background:var(--surface)' : '';
+       var estadoTxt = debe <= 0 ? 'Pagado' : 'Pdte';
+       cuotasHtml += '<tr style="'+rowStyle+'">' +
+         '<td>' + c.numero_cuota + '</td>' +
+         '<td>' + fmtDate(c.fecha_vence) + '</td>' +
+         '<td>' + fmt(c.valor) + '</td>' +
+         '<td>' + fmt(c.pagado) + '</td>' +
+         '<td>' + estadoTxt + '</td>' +
+       '</tr>';
+    });
+    document.getElementById('cartera-det-cuotas').innerHTML = cuotasHtml;
+    
+    // Configurar select de abonos
+    var selMetodos = document.getElementById('cartera-abono-metodo');
+    selMetodos.innerHTML = (configCache.metodos_pago||[]).filter(function(m){return !m.toLowerCase().includes('crédito')}).map(function(m){return '<option value="'+m+'">'+m+'</option>'}).join('');
+    
+    document.getElementById('cartera-abono-monto').value = '';
+    document.getElementById('cartera-abono-obs').value = '';
+    
+    openModal('modal-cartera-detalle');
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
+  hideLoading();
+}
+
+async function registrarAbonoCartera() {
+  if(!currentCarteraId) return;
+  var monto = parseFloat(document.getElementById('cartera-abono-monto').value);
+  var metodo = document.getElementById('cartera-abono-metodo').value;
+  var obs = document.getElementById('cartera-abono-obs').value;
+  
+  if(!monto || monto <= 0) {
+    toast('Ingresa un monto válido', 'error');
+    return;
+  }
+  
+  showLoading('Registrando abono...');
+  try {
+    await apiPost('/creditos/' + currentCarteraId + '/abonos', {
+       monto: monto,
+       metodo_pago: metodo,
+       observaciones: obs
+    });
+    toast('Abono registrado', 'success');
+    await loadCartera();
+    await verDetalleCredito(currentCarteraId);
+  } catch(e) {
+    toast('Error registrando abono: ' + e.message, 'error');
+  }
+  hideLoading();
+}
+
+// ════════════════════════════════
+// MÓDULO DE FINANZAS E INFORME
+// ════════════════════════════════
+async function registrarMovimiento() {
+  var tipo = document.getElementById('fin-tipo').value;
+  var cat = document.getElementById('fin-categoria').value.trim();
+  var monto = parseFloat(document.getElementById('fin-monto').value);
+  var metodo = document.getElementById('fin-metodo').value;
+  var obs = document.getElementById('fin-obs').value.trim();
+  
+  if(!cat || !monto || monto <= 0) {
+    toast('Categoría y monto son obligatorios', 'error');
+    return;
+  }
+  
+  showLoading('Registrando movimiento...');
+  try {
+    await apiPost('/movimientos', {
+      tipo: tipo,
+      categoria: cat,
+      monto: monto,
+      metodo_pago: metodo,
+      observaciones: obs
+    });
+    toast('Movimiento registrado', 'success');
+    document.getElementById('fin-categoria').value = '';
+    document.getElementById('fin-monto').value = '';
+    document.getElementById('fin-obs').value = '';
+    loadInforme();
+  } catch(e) {
+    toast('Error al registrar: ' + e.message, 'error');
+  }
+  hideLoading();
+}
+
+async function loadInforme() {
+  var fInicio = document.getElementById('fin-date-from').value;
+  var fFin = document.getElementById('fin-date-to').value;
+  if(!fInicio || !fFin) return;
+  
+  var content = document.getElementById('fin-informe-content');
+  content.innerHTML = '<div style="text-align:center;padding:20px"><div class="spinner" style="border-top-color:var(--electric);width:30px;height:30px"></div></div>';
+  
+  try {
+    var data = await apiGet('/informe?fecha_inicio=' + fInicio + '&fecha_fin=' + fFin);
+    
+    // 1. Total ventas por producto
+    var htmlProds = '<table style="font-size:12px;width:100%;text-align:left;border-collapse:collapse"><thead style="background:var(--surface2)"><tr><th>Producto</th><th>Cant.</th><th>Venta</th><th>Costo</th><th>Margen/Ganancia</th></tr></thead><tbody>';
+    var totalVentaP = 0, totalCostoP = 0, totalMargenP = 0;
+    (data.productos || []).forEach(function(p) {
+       var margen = parseFloat(p.total_venta) - parseFloat(p.total_costo);
+       totalVentaP += parseFloat(p.total_venta);
+       totalCostoP += parseFloat(p.total_costo);
+       totalMargenP += margen;
+       htmlProds += '<tr><td>'+p.nombre+'</td><td>'+p.cant+'</td><td>'+fmt(p.total_venta)+'</td><td style="color:var(--red)">'+fmt(p.total_costo)+'</td><td style="color:var(--green);font-weight:bold">'+fmt(margen)+'</td></tr>';
+    });
+    htmlProds += '<tr style="font-weight:bold;background:var(--bg)"><td>TOTALES</td><td></td><td>'+fmt(totalVentaP)+'</td><td style="color:var(--red)">'+fmt(totalCostoP)+'</td><td style="color:var(--green)">'+fmt(totalMargenP)+'</td></tr>';
+    htmlProds += '</tbody></table>';
+
+    // 2. Total ventas (Contado / Credito)
+    var vContado = 0, vCredito = 0;
+    (data.ventas || []).forEach(function(v) {
+       if (v.estado_pago === 'credito') vCredito += parseFloat(v.total);
+       else vContado += parseFloat(v.total);
+    });
+    
+    // 3 y 4. Ingresos y Egresos (agrupado)
+    var ingresosGenerales = 0, egresosGenerales = 0;
+    var htmlIng = '<ul style="list-style:none;padding:0;margin:0;font-size:13px;display:flex;flex-direction:column;gap:6px">';
+    var htmlEgr = '<ul style="list-style:none;padding:0;margin:0;font-size:13px;display:flex;flex-direction:column;gap:6px">';
+    
+    // Ventas de contado entran como ingreso
+    htmlIng += '<li><div style="display:flex;justify-content:space-between"><span>Ventas (Contado)</span><b>'+fmt(vContado)+'</b></div></li>';
+    ingresosGenerales += vContado;
+    
+    (data.movimientos || []).forEach(function(m) {
+       if (m.tipo === 'ingreso') {
+          htmlIng += '<li><div style="display:flex;justify-content:space-between"><span>'+m.categoria+'</span><b>'+fmt(m.total)+'</b></div></li>';
+          ingresosGenerales += parseFloat(m.total);
+       } else {
+          htmlEgr += '<li><div style="display:flex;justify-content:space-between"><span>'+m.categoria+'</span><b style="color:var(--red)">'+fmt(m.total)+'</b></div></li>';
+          egresosGenerales += parseFloat(m.total);
+       }
+    });
+    htmlIng += '<li style="border-top:1px solid var(--border);padding-top:4px"><div style="display:flex;justify-content:space-between"><span><b>Total Ingresos</b></span><b style="color:var(--green)">'+fmt(ingresosGenerales)+'</b></div></li></ul>';
+    htmlEgr += '<li style="border-top:1px solid var(--border);padding-top:4px"><div style="display:flex;justify-content:space-between"><span><b>Total Egresos</b></span><b style="color:var(--red)">'+fmt(egresosGenerales)+'</b></div></li></ul>';
+
+    // 5. Balance por métodos de pago
+    var htmlMetodos = '<ul style="list-style:none;padding:0;margin:0;font-size:13px;display:flex;flex-direction:column;gap:6px">';
+    var totalMetodos = 0;
+    Object.keys(data.metodos || {}).forEach(function(m) {
+       var val = parseFloat(data.metodos[m]);
+       totalMetodos += val;
+       htmlMetodos += '<li><div style="display:flex;justify-content:space-between"><span>'+m+'</span><b>'+fmt(val)+'</b></div></li>';
+    });
+    htmlMetodos += '<li style="border-top:1px solid var(--border);padding-top:4px"><div style="display:flex;justify-content:space-between"><span><b>Total en Caja</b></span><b style="color:var(--electric)">'+fmt(totalMetodos)+'</b></div></li></ul>';
+
+    // 6. Cartera
+    var c = data.cartera || {};
+    var cTotal = parseFloat(c.total_cartera || 0);
+    var cCobrado = parseFloat(c.cobrado || 0);
+    var cPendiente = cTotal - cCobrado;
+    
+    var htmlCartera = '<ul style="list-style:none;padding:0;margin:0;font-size:13px;display:flex;flex-direction:column;gap:6px">';
+    htmlCartera += '<li><div style="display:flex;justify-content:space-between"><span>Total Cartera Generada</span><b>'+fmt(cTotal)+'</b></div></li>';
+    htmlCartera += '<li><div style="display:flex;justify-content:space-between"><span>Abonado / Cobrado</span><b style="color:var(--green)">'+fmt(cCobrado)+'</b></div></li>';
+    htmlCartera += '<li style="border-top:1px solid var(--border);padding-top:4px"><div style="display:flex;justify-content:space-between"><span><b>Pendiente por Cobrar</b></span><b style="color:var(--red)">'+fmt(cPendiente)+'</b></div></li></ul>';
+
+    // RENDER FINAL
+    content.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr;gap:20px">
+        <div class="card" style="margin:0">
+          <h4 style="margin-bottom:10px;color:var(--electric)">1. Total Ventas por Producto</h4>
+          <div class="tbl-wrap" style="max-height:200px">${htmlProds}</div>
+        </div>
+      </div>
+      
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(250px, 1fr));gap:20px">
+        <div class="card" style="margin:0">
+          <h4 style="margin-bottom:10px;color:var(--electric)">2. Total Ventas</h4>
+          <ul style="list-style:none;padding:0;margin:0;font-size:13px;display:flex;flex-direction:column;gap:6px">
+             <li><div style="display:flex;justify-content:space-between"><span>Ventas Contado</span><b>${fmt(vContado)}</b></div></li>
+             <li><div style="display:flex;justify-content:space-between"><span>Ventas Crédito</span><b>${fmt(vCredito)}</b></div></li>
+             <li style="border-top:1px solid var(--border);padding-top:4px"><div style="display:flex;justify-content:space-between"><span><b>Total Generado</b></span><b>${fmt(vContado+vCredito)}</b></div></li>
+          </ul>
+        </div>
+        
+        <div class="card" style="margin:0;background:rgba(16,124,65,0.05);border-color:var(--green)">
+          <h4 style="margin-bottom:10px;color:var(--green)">3. Ingresos Reales</h4>
+          ${htmlIng}
+        </div>
+        
+        <div class="card" style="margin:0;background:rgba(216,59,1,0.05);border-color:var(--red)">
+          <h4 style="margin-bottom:10px;color:var(--red)">4. Egresos</h4>
+          ${htmlEgr}
+        </div>
+        
+        <div class="card" style="margin:0">
+          <h4 style="margin-bottom:10px;color:var(--electric)">5. Balance por Métodos (Caja Fuerte)</h4>
+          ${htmlMetodos}
+        </div>
+        
+        <div class="card" style="margin:0">
+          <h4 style="margin-bottom:10px;color:var(--electric)">6. Estado de Cartera (Histórico)</h4>
+          <p style="font-size:11px;color:var(--text-light);margin-bottom:8px">Muestra el saldo global de todos los créditos emitidos a la fecha, sin importar el filtro de fechas superior.</p>
+          ${htmlCartera}
+        </div>
+      </div>
+    `;
+
+  } catch(e) {
+    content.innerHTML = '<div style="color:var(--red);padding:20px;text-align:center">Error: ' + e.message + '</div>';
   }
 }
 </script>

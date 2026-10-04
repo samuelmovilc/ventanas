@@ -159,6 +159,85 @@ app.post('/api/productos/importar', async (req, res) => {
 });
 
 // ════════════════════════════════
+// CLIENTES
+// ════════════════════════════════
+
+// GET todos
+app.get('/api/clientes', async (req, res) => {
+  try {
+    const { busqueda } = req.query;
+    let sql = 'SELECT * FROM clientes WHERE 1=1';
+    const params = [];
+    if (busqueda) { 
+      sql += ' AND (id LIKE ? OR nombre LIKE ?)'; 
+      params.push('%'+busqueda+'%', '%'+busqueda+'%'); 
+    }
+    sql += ' ORDER BY nombre ASC';
+    const [rows] = await pool.query(sql, params);
+    res.json(rows);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET uno
+app.get('/api/clientes/:id', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM clientes WHERE id=?', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'No encontrado' });
+    res.json(rows[0]);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST crear
+app.post('/api/clientes', async (req, res) => {
+  try {
+    const { id, nombre, telefono, direccion } = req.body;
+    if (!id || !nombre) return res.status(400).json({ error: 'Faltan campos' });
+    await pool.query(
+      'INSERT INTO clientes (id, nombre, telefono, direccion) VALUES (?, ?, ?, ?)',
+      [id, nombre, telefono || null, direccion || null]
+    );
+    const [rows] = await pool.query('SELECT * FROM clientes WHERE id=?', [id]);
+    res.status(201).json(rows[0]);
+  } catch(e) {
+    if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'El ID o Cédula ya existe' });
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// PUT actualizar
+app.put('/api/clientes/:id', async (req, res) => {
+  try {
+    const { nombre, telefono, direccion } = req.body;
+    const [old] = await pool.query('SELECT id FROM clientes WHERE id=?', [req.params.id]);
+    if (!old.length) return res.status(404).json({ error: 'No encontrado' });
+    await pool.query(
+      'UPDATE clientes SET nombre=?, telefono=?, direccion=? WHERE id=?',
+      [nombre, telefono || null, direccion || null, req.params.id]
+    );
+    const [rows] = await pool.query('SELECT * FROM clientes WHERE id=?', [req.params.id]);
+    res.json(rows[0]);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// DELETE eliminar
+app.delete('/api/clientes/:id', async (req, res) => {
+  try {
+    const [check] = await pool.query('SELECT COUNT(*) as cnt FROM ventas WHERE cliente_id=?', [req.params.id]);
+    if (check[0].cnt > 0) return res.status(409).json({ error: 'El cliente tiene ventas asociadas y no puede ser eliminado' });
+    
+    // Si queremos ser muy cuidadosos, también revisamos la tabla de creditos
+    const [checkCreditos] = await pool.query('SELECT COUNT(*) as cnt FROM creditos WHERE cliente_id=?', [req.params.id]);
+    if (checkCreditos[0].cnt > 0) return res.status(409).json({ error: 'El cliente tiene créditos asociados' });
+    
+    // No permitir borrar el cliente por defecto
+    if (req.params.id === '222222') return res.status(403).json({ error: 'No se puede eliminar el cliente POS por defecto' });
+
+    await pool.query('DELETE FROM clientes WHERE id=?', [req.params.id]);
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ════════════════════════════════
 // VENTAS
 // ════════════════════════════════
 
@@ -236,10 +315,17 @@ app.post('/api/ventas', async (req, res) => {
       await conn.rollback(); conn.release();
       return res.status(400).json({ error: 'Faltan campos obligatorios' });
     }
+    const clienteStr = cliente || '222222 - CLIENTE POS';
+    let clienteId = clienteStr.split(' - ')[0].trim();
+    if (!clienteId) clienteId = '222222';
+
+    const isCredito = (metodo_pago && metodo_pago.toLowerCase().includes('crédito')) || (metodos_pago && metodos_pago.some(m => String(m.metodo).toLowerCase().includes('crédito')));
+    const estadoPago = isCredito ? 'credito' : 'contado';
+
     // Insertar venta
     const [result] = await conn.query(
-      'INSERT INTO ventas (folio,fecha,hora,cliente,observaciones,metodo_pago,metodos_pago,total,cambio,estado) VALUES (?,?,?,?,?,?,?,?,?,"aceptada")',
-      [folio, fecha, hora, cliente||'222222 - CLIENTE POS', observaciones||'', metodo_pago||'', JSON.stringify(metodos_pago||[]), total, cambio||0]
+      'INSERT INTO ventas (folio,fecha,hora,cliente,cliente_id,observaciones,metodo_pago,metodos_pago,total,cambio,estado,estado_pago) VALUES (?,?,?,?,?,?,?,?,?,?,"aceptada",?)',
+      [folio, fecha, hora, clienteStr, clienteId, observaciones||'', metodo_pago||'', JSON.stringify(metodos_pago||[]), total, cambio||0, estadoPago]
     );
     const ventaId = result.insertId;
     // Insertar detalle + descontar stock
@@ -253,6 +339,29 @@ app.post('/api/ventas', async (req, res) => {
         [p.cantidad, p.cantidad, p.codigo]
       );
     }
+
+    // Si es crédito y mandan el plan
+    if (isCredito && req.body.credito_plan) {
+      const plan = req.body.credito_plan;
+      const [credRes] = await conn.query(
+        'INSERT INTO creditos (cliente_id, venta_id, precio_contado, porcentaje_recargo, total_credito, inicial, num_cuotas, frecuencia, fecha_inicio, estado) VALUES (?,?,?,?,?,?,?,?,?,?)',
+        [clienteId, ventaId, plan.precio_contado, plan.porcentaje_recargo, total, plan.inicial||0, plan.num_cuotas, plan.frecuencia, plan.fecha_inicio, 'activo']
+      );
+      const creditoId = credRes.insertId;
+      await conn.query('UPDATE ventas SET credito_id=? WHERE id=?', [creditoId, ventaId]);
+
+      if (plan.cuotas && plan.cuotas.length) {
+        for (const c of plan.cuotas) {
+          await conn.query('INSERT INTO credito_cuotas (credito_id, numero_cuota, fecha_vence, valor, pagado) VALUES (?,?,?,?,0)', [creditoId, c.numero, c.fecha, c.valor]);
+        }
+      }
+
+      if (plan.inicial > 0) {
+        await conn.query('INSERT INTO movimientos_caja (tipo, categoria, monto, metodo_pago, observaciones, cliente_id, credito_id) VALUES ("ingreso", "Abono Inicial", ?, ?, ?, ?, ?)',
+          [plan.inicial, 'Efectivo', 'Abono inicial venta ' + folio, clienteId, creditoId]);
+      }
+    }
+
     await conn.commit(); conn.release();
     const [rows] = await pool.query('SELECT * FROM ventas WHERE id=?', [ventaId]);
     res.status(201).json(rows[0]);
@@ -315,8 +424,196 @@ app.put('/api/configuracion/:id', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ════════════════════════════════
+// CREDITOS
+// ════════════════════════════════
+app.get('/api/creditos', async (req, res) => {
+  try {
+    const { cliente_id, estado } = req.query;
+    let sql = 'SELECT c.*, cl.nombre as cliente_nombre FROM creditos c JOIN clientes cl ON c.cliente_id = cl.id WHERE 1=1';
+    const params = [];
+    if (cliente_id) { sql += ' AND c.cliente_id=?'; params.push(cliente_id); }
+    if (estado) { sql += ' AND c.estado=?'; params.push(estado); }
+    sql += ' ORDER BY c.created_at DESC';
+    const [creditos] = await pool.query(sql, params);
+    
+    // Cargar cuotas para cada crédito
+    for (const cred of creditos) {
+      const [cuotas] = await pool.query('SELECT * FROM credito_cuotas WHERE credito_id=? ORDER BY numero_cuota ASC', [cred.id]);
+      cred.cuotas = cuotas;
+      
+      // Calcular totales
+      cred.total_pagado = cuotas.reduce((sum, c) => sum + parseFloat(c.pagado||0), 0) + parseFloat(cred.inicial||0);
+      cred.saldo_pendiente = parseFloat(cred.total_credito) - cred.total_pagado;
+    }
+    res.json(creditos);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/creditos/:id', async (req, res) => {
+  try {
+    const [creditos] = await pool.query('SELECT c.*, cl.nombre as cliente_nombre FROM creditos c JOIN clientes cl ON c.cliente_id = cl.id WHERE c.id=?', [req.params.id]);
+    if (!creditos.length) return res.status(404).json({ error: 'Crédito no encontrado' });
+    const cred = creditos[0];
+    const [cuotas] = await pool.query('SELECT * FROM credito_cuotas WHERE credito_id=? ORDER BY numero_cuota ASC', [cred.id]);
+    cred.cuotas = cuotas;
+    cred.total_pagado = cuotas.reduce((sum, c) => sum + parseFloat(c.pagado||0), 0) + parseFloat(cred.inicial||0);
+    cred.saldo_pendiente = parseFloat(cred.total_credito) - cred.total_pagado;
+    
+    // Obtener abonos (movimientos)
+    const [movs] = await pool.query('SELECT * FROM movimientos_caja WHERE credito_id=? AND tipo="ingreso" ORDER BY created_at DESC', [cred.id]);
+    cred.abonos = movs;
+    
+    res.json(cred);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/creditos/:id/abonos', async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const creditoId = req.params.id;
+    const { monto, metodo_pago, observaciones } = req.body;
+    
+    if (!monto || parseFloat(monto) <= 0) {
+      await conn.rollback(); conn.release();
+      return res.status(400).json({ error: 'Monto inválido' });
+    }
+
+    const [creditos] = await conn.query('SELECT * FROM creditos WHERE id=?', [creditoId]);
+    if (!creditos.length) {
+       await conn.rollback(); conn.release();
+       return res.status(404).json({ error: 'Crédito no encontrado' });
+    }
+    const cred = creditos[0];
+
+    // Aplicar monto a las cuotas vencidas/pendientes en orden
+    const [cuotas] = await conn.query('SELECT * FROM credito_cuotas WHERE credito_id=? AND pagado < valor ORDER BY numero_cuota ASC', [creditoId]);
+    let restante = parseFloat(monto);
+    
+    for (const c of cuotas) {
+       if (restante <= 0) break;
+       const debe = parseFloat(c.valor) - parseFloat(c.pagado);
+       const aPagar = Math.min(debe, restante);
+       await conn.query('UPDATE credito_cuotas SET pagado=pagado+? WHERE id=?', [aPagar, c.id]);
+       restante -= aPagar;
+    }
+
+    // Registrar en caja
+    await conn.query('INSERT INTO movimientos_caja (tipo, categoria, monto, metodo_pago, observaciones, cliente_id, credito_id) VALUES ("ingreso", "Abono Crédito", ?, ?, ?, ?, ?)',
+      [parseFloat(monto), metodo_pago || 'Efectivo', observaciones || 'Abono a crédito', cred.cliente_id, creditoId]);
+
+    // Verificar si se pagó todo
+    const [todasCuotas] = await conn.query('SELECT SUM(valor) as tot, SUM(pagado) as pag FROM credito_cuotas WHERE credito_id=?', [creditoId]);
+    const totalPagado = parseFloat(todasCuotas[0].pag) + parseFloat(cred.inicial||0);
+    if (totalPagado >= parseFloat(cred.total_credito) - 0.01) {
+       await conn.query('UPDATE creditos SET estado="pagado" WHERE id=?', [creditoId]);
+       await conn.query('UPDATE ventas SET estado_pago="contado" WHERE credito_id=?', [creditoId]); // Opcional
+    }
+
+    await conn.commit(); conn.release();
+    res.json({ ok: true, mensaje: 'Abono registrado correctamente' });
+  } catch(e) {
+    await conn.rollback(); conn.release();
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ════════════════════════════════
+// MOVIMIENTOS E INFORME
+// ════════════════════════════════
+app.post('/api/movimientos', async (req, res) => {
+  try {
+    const { tipo, categoria, monto, metodo_pago, observaciones } = req.body;
+    if(!tipo || !categoria || !monto) return res.status(400).json({ error: 'Faltan campos' });
+    
+    const [result] = await pool.query(
+      'INSERT INTO movimientos_caja (tipo, categoria, monto, metodo_pago, observaciones) VALUES (?,?,?,?,?)',
+      [tipo, categoria, monto, metodo_pago||'Efectivo', observaciones||'']
+    );
+    res.json({ ok: true, id: result.insertId });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/informe', async (req, res) => {
+  try {
+    const { fecha_inicio, fecha_fin } = req.query;
+    if(!fecha_inicio || !fecha_fin) return res.status(400).json({ error: 'Rango de fechas requerido' });
+
+    // 1. Ventas por producto
+    const [prodVentas] = await pool.query(`
+      SELECT vp.producto_id, vp.nombre, 
+             SUM(vp.cantidad) as cant, 
+             SUM(vp.subtotal) as total_venta, 
+             SUM(vp.cantidad * COALESCE(p.precio_compra,0)) as total_costo 
+      FROM venta_productos vp 
+      JOIN ventas v ON vp.venta_id=v.id 
+      LEFT JOIN productos p ON vp.producto_id=p.id 
+      WHERE v.fecha BETWEEN ? AND ? AND v.estado='aceptada' 
+      GROUP BY vp.producto_id, vp.nombre
+    `, [fecha_inicio, fecha_fin]);
+
+    // 2. Total ventas (Contado vs Crédito)
+    const [totalVentas] = await pool.query(`
+      SELECT estado_pago, SUM(total) as total 
+      FROM ventas 
+      WHERE fecha BETWEEN ? AND ? AND estado='aceptada' 
+      GROUP BY estado_pago
+    `, [fecha_inicio, fecha_fin]);
+
+    // 3. Ingresos/Egresos (movimientos_caja)
+    const [movimientos] = await pool.query(`
+      SELECT tipo, categoria, SUM(monto) as total 
+      FROM movimientos_caja 
+      WHERE DATE(created_at) BETWEEN ? AND ? 
+      GROUP BY tipo, categoria
+    `, [fecha_inicio, fecha_fin]);
+
+    // 4. Cartera
+    const [cartera] = await pool.query(`
+      SELECT SUM(total_credito) as total_cartera, 
+             SUM((SELECT COALESCE(SUM(pagado),0) FROM credito_cuotas cc WHERE cc.credito_id=c.id) + inicial) as cobrado 
+      FROM creditos c
+    `);
+    
+    // 5. Balance por Metodos de Pago
+    const [ventasMetodos] = await pool.query(`
+      SELECT metodos_pago FROM ventas WHERE fecha BETWEEN ? AND ? AND estado='aceptada' AND estado_pago='contado'
+    `, [fecha_inicio, fecha_fin]);
+    
+    let metodosBalance = {};
+    for (let v of ventasMetodos) {
+       let arr = typeof v.metodos_pago === 'string' ? JSON.parse(v.metodos_pago || '[]') : (v.metodos_pago || []);
+       for (let m of arr) {
+          metodosBalance[m.metodo] = (metodosBalance[m.metodo] || 0) + parseFloat(m.monto);
+       }
+    }
+    
+    const [movMetodos] = await pool.query(`
+      SELECT tipo, metodo_pago, SUM(monto) as total 
+      FROM movimientos_caja 
+      WHERE DATE(created_at) BETWEEN ? AND ? 
+      GROUP BY tipo, metodo_pago
+    `, [fecha_inicio, fecha_fin]);
+    
+    for (let m of movMetodos) {
+       if (m.tipo === 'ingreso') metodosBalance[m.metodo_pago] = (metodosBalance[m.metodo_pago] || 0) + parseFloat(m.total);
+       if (m.tipo === 'egreso') metodosBalance[m.metodo_pago] = (metodosBalance[m.metodo_pago] || 0) - parseFloat(m.total);
+    }
+
+    res.json({
+       productos: prodVentas,
+       ventas: totalVentas,
+       movimientos: movimientos,
+       metodos: metodosBalance,
+       cartera: cartera[0]
+    });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── START ──
 const PORT = process.env.PORT || 3005;
 app.listen(PORT, () => console.log(`API POS corriendo en puerto ${PORT}`));
-
 module.exports = app;
