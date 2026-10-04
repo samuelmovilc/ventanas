@@ -646,6 +646,49 @@ app.get('/api/informe', async (req, res) => {
 });
 
 // ── START ──
+// ================= CATALOGOS =================
+app.post('/api/catalogos', async (req, res) => {
+  try {
+    const { configuracion, productos } = req.body;
+    const slug = Math.random().toString(36).substring(2, 8).toUpperCase();
+    
+    await pool.query(
+      'INSERT INTO catalogos (slug, configuracion, productos) VALUES (?, ?, ?)',
+      [slug, JSON.stringify(configuracion), JSON.stringify(productos)]
+    );
+    
+    res.json({ success: true, slug });
+  } catch (error) {
+    console.error('Error publicando catalogo:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+app.get('/api/catalogos/:slug', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM catalogos WHERE slug = ? LIMIT 1', [req.params.slug]);
+    if (rows.length === 0) return res.status(404).json({ error: 'Catálogo no encontrado' });
+    
+    let catalogo = rows[0];
+    if (typeof catalogo.configuracion === 'string') catalogo.configuracion = JSON.parse(catalogo.configuracion);
+    if (typeof catalogo.productos === 'string') catalogo.productos = JSON.parse(catalogo.productos);
+    
+    if (!catalogo.configuracion.mostrarPrecios) {
+      catalogo.productos = catalogo.productos.map(p => {
+        let clean = { ...p };
+        delete clean.precio_venta;
+        delete clean.precio_min;
+        return clean;
+      });
+    }
+    
+    res.json(catalogo);
+  } catch (error) {
+    console.error('Error obteniendo catalogo:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 const PORT = process.env.PORT || 3005;
 app.listen(PORT, () => console.log(`API POS corriendo en puerto ${PORT}`));
 module.exports = app;

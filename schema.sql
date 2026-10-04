@@ -94,3 +94,11 @@ INSERT INTO productos (id, nombre, precio_venta, precio_compra, stock, entradas)
 ('750100000009','Folder Manila',2.50,1.50,200,200),
 ('750100000010','Tijeras',18.00,12.00,25,25)
 ON DUPLICATE KEY UPDATE nombre=VALUES(nombre);
+
+CREATE TABLE IF NOT EXISTS catalogos (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  slug VARCHAR(100) UNIQUE NOT NULL,
+  configuracion JSON NOT NULL,
+  productos JSON NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
