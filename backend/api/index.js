@@ -460,6 +460,7 @@ app.get('/api/creditos', async (req, res) => {
       // Calcular totales
       cred.total_pagado = cuotas.reduce((sum, c) => sum + parseFloat(c.pagado||0), 0) + parseFloat(cred.inicial||0);
       cred.saldo_pendiente = parseFloat(cred.total_credito) - cred.total_pagado;
+      try { cred.productos = cred.productos_cotizados ? JSON.parse(cred.productos_cotizados) : []; } catch(e) { cred.productos = []; }
     }
     res.json(creditos);
   } catch(e) { res.status(500).json({ error: e.message }); }
@@ -485,12 +486,14 @@ app.get('/api/creditos/:id', async (req, res) => {
 
 app.post('/api/creditos/plan', async (req, res) => {
   try {
-    const { cliente_id, precio_contado, porcentaje_recargo, total_credito, inicial, num_cuotas, frecuencia } = req.body;
+    const { cliente_id, precio_contado, porcentaje_recargo, total_credito, inicial, num_cuotas, frecuencia, productos } = req.body;
     if (!cliente_id || !precio_contado || !num_cuotas) return res.status(400).json({ error: 'Faltan campos' });
     
+    const productos_cotizados = productos ? JSON.stringify(productos) : null;
+    
     const [result] = await pool.query(
-      'INSERT INTO creditos (cliente_id, venta_id, precio_contado, porcentaje_recargo, total_credito, inicial, num_cuotas, frecuencia, fecha_inicio, estado) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, NULL, "aprobado")',
-      [cliente_id, precio_contado, porcentaje_recargo || 0, total_credito, inicial || 0, num_cuotas, frecuencia || 'quincenal']
+      'INSERT INTO creditos (cliente_id, venta_id, precio_contado, porcentaje_recargo, total_credito, inicial, num_cuotas, frecuencia, fecha_inicio, estado, productos_cotizados) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, NULL, "aprobado", ?)',
+      [cliente_id, precio_contado, porcentaje_recargo || 0, total_credito, inicial || 0, num_cuotas, frecuencia || 'quincenal', productos_cotizados]
     );
     res.status(201).json({ id: result.insertId, estado: 'aprobado' });
   } catch(e) { res.status(500).json({ error: e.message }); }

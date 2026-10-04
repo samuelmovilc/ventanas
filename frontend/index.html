@@ -470,7 +470,11 @@ tr.anulada-row td{opacity:.55}tr.anulada-row{background:#fff5f5!important}
             <button class="btn btn-secondary btn-xs" onclick="addPayRow()"><i class="fa-solid fa-plus"></i> Agregar</button>
           </div>
           <div class="multi-pay-list" id="multi-pay-list"></div>
-          <div class="form-row"><label>Cliente</label><select id="pos-cliente"></select></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+            <label style="margin:0">Cliente</label>
+            <button class="btn btn-primary btn-xs" onclick="abrirModalImportarCotizacion()" style="font-size:10px;padding:2px 5px;background:var(--electric)"><i class="fa-solid fa-download"></i> Cargar Cotización</button>
+          </div>
+          <div class="form-row" style="margin-top:0"><select id="pos-cliente"></select></div>
           <div class="form-row"><label>Obs.</label><input type="text" id="pos-obs" placeholder="Observaciones..."></div>
           <div class="form-row"><label>Paga con</label><input type="number" id="paga-con" placeholder="0.00" min="0" step="0.01" readonly style="background:var(--bg);color:var(--text-mid);cursor:not-allowed"></div>
           <div class="change-box"><span id="lbl-cambio">Cambio / Vueltas</span><strong id="cambio-val">$0.00</strong></div>
@@ -673,6 +677,25 @@ tr.anulada-row td{opacity:.55}tr.anulada-row{background:#fff5f5!important}
 
 
 <!-- MODALES -->
+<div class="modal-overlay" id="modal-importar-cotizacion">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header"><span><i class="fa-solid fa-download"></i> Cargar Cotización de Crédito</span><button class="modal-close" onclick="closeModal('modal-importar-cotizacion')"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <div style="background:var(--surface2);padding:10px;border-radius:var(--radius-sm);border:1px solid var(--border);color:var(--text);margin-bottom:10px;font-size:12px">
+        <strong>Info:</strong> Selecciona una cotización pre-aprobada para cargar los productos y precios exactos al carrito.
+      </div>
+      <div class="tbl-wrap">
+        <table style="font-size:12px">
+          <thead>
+            <tr><th>ID</th><th>Cliente</th><th>Total Crédito</th><th>Acción</th></tr>
+          </thead>
+          <tbody id="lista-cotizaciones-importar"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-cartera-detalle">
   <div class="modal" style="max-width:800px">
     <div class="modal-header"><span><i class="fa-solid fa-list"></i> Detalle del Crédito <span id="cartera-det-id"></span></span><button class="modal-close" onclick="closeModal('modal-cartera-detalle')"><i class="fa-solid fa-xmark"></i></button></div>
@@ -851,13 +874,23 @@ tr.anulada-row td{opacity:.55}tr.anulada-row{background:#fff5f5!important}
     <div class="modal-header"><span><i class="fa-solid fa-calculator"></i> Cotizar Plan de Crédito (Pre-aprobación)</span><button class="modal-close" onclick="closeModal('modal-credito-plan')"><i class="fa-solid fa-xmark"></i></button></div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;font-size:13px">
       <div style="background:var(--surface2);padding:10px;border-radius:var(--radius-sm);border:1px solid var(--border);color:var(--text)">
-        <strong>Info:</strong> Genera un plan de crédito pre-aprobado. Luego ve al POS, selecciona al cliente, agrega los productos por el <b>Total del Crédito</b>, y elige pago a Crédito.
+        <strong>Info:</strong> Selecciona el cliente y los productos que desea llevar. El sistema calculará el total. Luego, ve al POS y usa el botón "Cargar Cotización" para cobrar automáticamente.
       </div>
 
       <div class="form-group"><label>Cliente</label><select id="cotizador-cliente"></select></div>
       
+      <div class="form-group" style="position:relative">
+        <label>Buscar Producto a Financiar</label>
+        <input type="text" id="cotizador-search-prod" placeholder="Escribe para buscar y añadir..." autocomplete="off">
+        <div id="cotizador-search-results" class="search-results-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:4px;max-height:200px;overflow-y:auto;z-index:100;box-shadow:0 5px 15px rgba(0,0,0,0.1)"></div>
+      </div>
+      
+      <div id="cotizador-productos-lista" style="display:flex;flex-direction:column;gap:5px;max-height:100px;overflow-y:auto;margin-bottom:5px;border:1px solid var(--border);border-radius:4px;padding:5px;background:var(--bg)">
+        <div style="text-align:center;color:var(--text-light);font-size:12px;padding:10px">No hay productos agregados.</div>
+      </div>
+      
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div class="form-group"><label>Precio de Contado</label><input type="number" id="credito-precio-contado" placeholder="0" oninput="calcularPlanCredito()"></div>
+        <div class="form-group"><label>Precio de Contado (Suma)</label><input type="number" id="credito-precio-contado" placeholder="0" readonly style="background:var(--surface2)"></div>
         <div class="form-group"><label>% Recargo</label><input type="number" id="credito-recargo-porcentaje" placeholder="15" value="15" oninput="calcularPlanCredito()"></div>
       </div>
       
@@ -1212,6 +1245,103 @@ function syncPagaCon(){
 }
 
 var creditoPlanConfirmado = null; // Guardar el plan confirmado
+var posImportedPlanId = null;
+
+async function abrirModalImportarCotizacion() {
+  var clienteIdStr = document.getElementById('pos-cliente').value;
+  var clienteId = clienteIdStr ? clienteIdStr.split(' - ')[0].trim() : '222222';
+  
+  showLoading('Buscando cotizaciones...');
+  try {
+    var creditos = await apiGet('/creditos?estado=aprobado');
+    hideLoading();
+    
+    var html = '';
+    creditos.forEach(function(c) {
+      if (clienteId !== '222222' && c.cliente_id !== clienteId) return; // Filtrar por cliente si hay uno seleccionado
+      
+      html += '<tr>';
+      html += '<td>#'+c.id+'</td>';
+      html += '<td>'+(c.cliente_nombre||c.cliente_id)+'</td>';
+      html += '<td style="font-weight:bold">'+fmt(c.total_credito)+'</td>';
+      html += '<td><button class="btn btn-primary btn-xs" onclick="cargarCotizacionAlPOS('+c.id+')"><i class="fa-solid fa-check"></i> Cargar</button></td>';
+      html += '</tr>';
+    });
+    
+    if(!html) {
+      html = '<tr><td colspan="4" style="text-align:center">No hay cotizaciones pendientes para este cliente.</td></tr>';
+    }
+    
+    document.getElementById('lista-cotizaciones-importar').innerHTML = html;
+    openModal('modal-importar-cotizacion');
+  } catch(e) {
+    hideLoading();
+    toast('Error cargando cotizaciones: '+e.message, 'error');
+  }
+}
+
+async function cargarCotizacionAlPOS(planId) {
+  closeModal('modal-importar-cotizacion');
+  showLoading('Cargando cotización...');
+  try {
+    var plan = await apiGet('/creditos/'+planId);
+    if(plan) {
+      posImportedPlanId = plan.id;
+      
+      // 1. Seleccionar el cliente en el POS
+      var posClienteSelect = document.getElementById('pos-cliente');
+      for(var i=0; i<posClienteSelect.options.length; i++) {
+        if(posClienteSelect.options[i].value.startsWith(plan.cliente_id)) {
+          posClienteSelect.selectedIndex = i;
+          break;
+        }
+      }
+      
+      // 2. Cargar los productos al carrito ajustando el precio inflado
+      cart = [];
+      if(plan.productos && plan.productos.length > 0) {
+        var recargo = parseFloat(plan.porcentaje_recargo) || 0;
+        var multiplicador = 1 + (recargo / 100);
+        
+        plan.productos.forEach(function(p) {
+          var precioInflado = Math.round(p.precio * multiplicador);
+          cart.push({
+            id: p.id,
+            nombre: p.nombre,
+            precio: precioInflado,
+            cantidad: p.cantidad,
+            subtotal: precioInflado * p.cantidad
+          });
+        });
+      }
+      renderCart();
+      
+      // 3. Forzar el método de pago a Crédito por el total
+      var total = cart.reduce((s,c)=>s+c.subtotal,0);
+      document.getElementById('multi-pay-list').innerHTML = ''; // Limpiar
+      var div = document.createElement('div');
+      div.style.display = 'flex'; div.style.gap = '5px'; div.style.marginBottom = '5px';
+      div.innerHTML = `
+        <select class="pay-method" style="flex:1;padding:4px;font-size:12px;border:1px solid var(--border);border-radius:4px" onchange="calcTotalPagaCon()">
+          <option value="Crédito" selected>Crédito</option>
+          <option value="Efectivo">Efectivo</option>
+          <option value="Transferencia">Transferencia</option>
+          <option value="Tarjeta">Tarjeta</option>
+        </select>
+        <input type="number" class="pay-amount" value="${total}" step="0.01" style="width:80px;padding:4px;font-size:12px;border:1px solid var(--border);border-radius:4px" oninput="calcTotalPagaCon()">
+        <button class="btn btn-secondary btn-xs" style="color:var(--red)" onclick="this.parentElement.remove();calcTotalPagaCon()"><i class="fa-solid fa-trash"></i></button>
+      `;
+      document.getElementById('multi-pay-list').appendChild(div);
+      calcTotalPagaCon();
+      
+      toast('Cotización cargada correctamente', 'success');
+    }
+  } catch(e) {
+    toast('Error: '+e.message, 'error');
+  }
+  hideLoading();
+}
+
 async function processSale(){
   var planCotizadoId = null;
   if(!cart.length){toast('Agrega productos al carrito','error');return}
@@ -1232,13 +1362,17 @@ async function processSale(){
      }
      showLoading('Buscando plan aprobado...');
      try {
-         var creditosActivos = await apiGet('/creditos?cliente_id=' + clienteId + '&estado=aprobado');
-         if(!creditosActivos || creditosActivos.length === 0) {
-             hideLoading();
-             toast('Este cliente no tiene ningún plan de crédito aprobado. Ve a Cartera y crea uno primero.', 'error');
-             return;
+         if (posImportedPlanId) {
+             planCotizadoId = posImportedPlanId;
+         } else {
+             var creditosActivos = await apiGet('/creditos?cliente_id=' + clienteId + '&estado=aprobado');
+             if(!creditosActivos || creditosActivos.length === 0) {
+                 hideLoading();
+                 toast('Este cliente no tiene ningún plan de crédito aprobado. Ve a Cartera y crea uno primero.', 'error');
+                 return;
+             }
+             planCotizadoId = creditosActivos[0].id; // Tomamos el más reciente
          }
-         planCotizadoId = creditosActivos[0].id; // Tomamos el más reciente
          hideLoading();
      } catch(e) {
          hideLoading();
@@ -1277,6 +1411,7 @@ async function processSale(){
       printTicket(currentSaleForReprint);
       clearCart();document.getElementById('pos-obs').value='';
       creditoPlanConfirmado = null; // Limpiar plan
+      posImportedPlanId = null;
       await loadProductos();
       toast(folio+' — Cambio: '+fmt(cambio),'success',5000);
     }catch(e){toast('Error procesando venta: '+e.message,'error')}
@@ -2586,13 +2721,16 @@ function imprimirSimulacion() {
   pArea.style.display = 'none';
 }
 
+var cotizadorProductos = [];
+
 async function abrirCotizadorCredito() {
-  // Llenar combo de clientes igual que en POS
   document.getElementById('cotizador-cliente').innerHTML = document.getElementById('pos-cliente').innerHTML;
   
-  document.getElementById('credito-total-venta').value = '';
-  document.getElementById('credito-total-venta').dataset.raw = '';
-  document.getElementById('credito-precio-contado').value = '';
+  document.getElementById('cotizador-search-prod').value = '';
+  document.getElementById('cotizador-search-results').style.display = 'none';
+  cotizadorProductos = [];
+  renderCotizadorProductos();
+  
   document.getElementById('credito-recargo-porcentaje').value = '15';
   document.getElementById('credito-inicial').value = '';
   document.getElementById('credito-saldo').value = '';
@@ -2602,6 +2740,67 @@ async function abrirCotizadorCredito() {
   
   openModal('modal-credito-plan');
 }
+
+function renderCotizadorProductos() {
+  var div = document.getElementById('cotizador-productos-lista');
+  if (cotizadorProductos.length === 0) {
+    div.innerHTML = '<div style="text-align:center;color:var(--text-light);font-size:12px;padding:10px">No hay productos agregados.</div>';
+    document.getElementById('credito-precio-contado').value = '0';
+    calcularPlanCredito();
+    return;
+  }
+  var html = '';
+  var totalContado = 0;
+  cotizadorProductos.forEach(function(p, idx) {
+    var subtotal = p.precio * p.cantidad;
+    totalContado += subtotal;
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;background:#fff;padding:5px;border:1px solid var(--border);border-radius:4px">';
+    html += '<div style="flex:1;font-size:11px"><b>'+p.nombre+'</b><br><span style="color:var(--text-light)">'+fmt(p.precio)+' x '+p.cantidad+'</span></div>';
+    html += '<div style="font-weight:bold;margin-right:10px">'+fmt(subtotal)+'</div>';
+    html += '<button class="btn btn-secondary btn-xs" style="color:var(--red);padding:2px 5px" onclick="removeCotizadorProd('+idx+')"><i class="fa-solid fa-trash"></i></button>';
+    html += '</div>';
+  });
+  div.innerHTML = html;
+  document.getElementById('credito-precio-contado').value = totalContado;
+  calcularPlanCredito();
+}
+
+function removeCotizadorProd(idx) {
+  cotizadorProductos.splice(idx, 1);
+  renderCotizadorProductos();
+}
+
+document.getElementById('cotizador-search-prod').addEventListener('input', async function(e) {
+  var q = e.target.value.trim().toLowerCase();
+  var resDiv = document.getElementById('cotizador-search-results');
+  if(q.length < 2) { resDiv.style.display='none'; return; }
+  
+  try {
+    var productos = await apiGet('/productos?search='+encodeURIComponent(q));
+    if(productos.length === 0) { resDiv.style.display='none'; return; }
+    var html = '';
+    productos.forEach(function(p) {
+      if(p.stock <= 0) return; // Opcional, pero mejor solo cotizar lo que hay
+      html += '<div class="search-result-item" style="padding:8px;border-bottom:1px solid #eee;cursor:pointer;font-size:12px" onclick="addCotizadorProd(\''+p.id+'\', \''+p.nombre.replace(/'/g,"\\'")+'\', '+p.precio_venta+')">';
+      html += '<div style="font-weight:bold">'+p.nombre+'</div>';
+      html += '<div style="color:var(--text-light);font-size:11px">ID: '+p.id+' | Stock: '+p.stock+' | <b>'+fmt(p.precio_venta)+'</b></div>';
+      html += '</div>';
+    });
+    resDiv.innerHTML = html;
+    resDiv.style.display = 'block';
+  } catch(err) { console.error(err); }
+});
+
+function addCotizadorProd(id, nombre, precio) {
+  var ex = cotizadorProductos.find(p => p.id === id);
+  if (ex) ex.cantidad++;
+  else cotizadorProductos.push({id: id, nombre: nombre, precio: precio, cantidad: 1});
+  
+  document.getElementById('cotizador-search-prod').value = '';
+  document.getElementById('cotizador-search-results').style.display = 'none';
+  renderCotizadorProductos();
+}
+
 
 async function guardarPlanCreditoAprobado() {
   var clienteIdStr = document.getElementById('cotizador-cliente').value;
@@ -2630,16 +2829,17 @@ async function guardarPlanCreditoAprobado() {
   
   showLoading('Guardando plan pre-aprobado...');
   try {
-     var body = {
-         cliente_id: clienteId,
-         precio_contado: pContado,
-         porcentaje_recargo: recargo,
-         total_credito: totalCredito,
-         inicial: inicial,
-         num_cuotas: cuotas,
-         frecuencia: frec
-     };
-     await apiPost('/creditos/plan', body);
+  var body = {
+      cliente_id: clienteId,
+      precio_contado: pContado,
+      porcentaje_recargo: recargo,
+      total_credito: totalCredito,
+      inicial: inicial,
+      num_cuotas: cuotas,
+      frecuencia: frec,
+      productos: cotizadorProductos
+  };
+  await apiPost('/creditos/plan', body);
      hideLoading();
      toast('Plan pre-aprobado exitosamente', 'success');
      closeModal('modal-credito-plan');
