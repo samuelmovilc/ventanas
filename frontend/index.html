@@ -901,12 +901,13 @@ tr.anulada-row td{opacity:.55}tr.anulada-row{background:#fff5f5!important}
 
       <div class="form-group"><label>Cliente</label><select id="cotizador-cliente"></select></div>
       
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div class="form-group"><label>Total Crédito (Precio con Recargos)</label><input type="number" id="credito-total-venta" placeholder="0" oninput="calcularPlanCredito()"></div>
-        <div class="form-group"><label>Precio de Contado (Opcional)</label><input type="number" id="credito-precio-contado" placeholder="0" oninput="calcularPlanCredito()"></div>
+        <div class="form-group"><label>Precio de Contado</label><input type="number" id="credito-precio-contado" placeholder="0" oninput="calcularPlanCredito()"></div>
+        <div class="form-group"><label>% Recargo</label><input type="number" id="credito-recargo-porcentaje" placeholder="15" value="15" oninput="calcularPlanCredito()"></div>
       </div>
       
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+        <div class="form-group"><label>Total Crédito</label><input type="text" id="credito-total-venta" readonly style="background:var(--bg)"></div>
+      
         <div class="form-group"><label>Abono Inicial</label><input type="number" id="credito-inicial" placeholder="0" oninput="calcularPlanCredito()"></div>
         <div class="form-group"><label>Saldo a Financiar</label><input type="text" id="credito-saldo" readonly style="background:var(--bg)"></div>
       </div>
@@ -2551,13 +2552,15 @@ async function deleteCliente(id) {
 var currentCuotasSimuladas = [];
 
 function calcularPlanCredito() {
-  var totalCredito = parseFloat(document.getElementById('credito-total-venta').value) || 0;
-  var precioContado = parseFloat(document.getElementById('credito-precio-contado').value) || totalCredito;
+  var precioContado = parseFloat(document.getElementById('credito-precio-contado').value) || 0;
+  var recargoPorcentaje = parseFloat(document.getElementById('credito-recargo-porcentaje').value) || 0;
   
-  var recargoPorcentaje = 0;
-  if(precioContado > 0 && totalCredito > precioContado) {
-    recargoPorcentaje = ((totalCredito - precioContado) / precioContado) * 100;
-  }
+  var totalCredito = precioContado * (1 + (recargoPorcentaje / 100));
+  
+  var elTotal = document.getElementById('credito-total-venta');
+  elTotal.value = fmt(totalCredito);
+  elTotal.dataset.raw = totalCredito;
+
   
   var inicial = parseFloat(document.getElementById('credito-inicial').value) || 0;
   var saldo = Math.max(0, totalCredito - inicial);
@@ -2594,7 +2597,9 @@ async function abrirCotizadorCredito() {
   document.getElementById('cotizador-cliente').innerHTML = document.getElementById('pos-cliente').innerHTML;
   
   document.getElementById('credito-total-venta').value = '';
+  document.getElementById('credito-total-venta').dataset.raw = '';
   document.getElementById('credito-precio-contado').value = '';
+  document.getElementById('credito-recargo-porcentaje').value = '15';
   document.getElementById('credito-inicial').value = '';
   document.getElementById('credito-saldo').value = '';
   document.getElementById('credito-inicio').value = todayStr();
@@ -2612,16 +2617,13 @@ async function guardarPlanCreditoAprobado() {
      return;
   }
   
-  var totalCredito = parseFloat(document.getElementById('credito-total-venta').value) || 0;
+  var elTotal = document.getElementById('credito-total-venta');
+  var totalCredito = parseFloat(elTotal.dataset.raw) || 0;
   if(totalCredito <= 0) {
       toast('El total del crédito debe ser mayor a 0', 'error'); return;
   }
   var pContado = parseFloat(document.getElementById('credito-precio-contado').value) || totalCredito;
-  
-  var recargo = 0;
-  if(pContado > 0 && totalCredito > pContado) {
-    recargo = ((totalCredito - pContado) / pContado) * 100;
-  }
+  var recargo = parseFloat(document.getElementById('credito-recargo-porcentaje').value) || 0;
   
   var inicial = parseFloat(document.getElementById('credito-inicial').value) || 0;
   var cuotas = parseInt(document.getElementById('credito-cuotas').value) || 1;
