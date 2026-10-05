@@ -411,6 +411,13 @@ tr.anulada-row td{opacity:.55}tr.anulada-row{background:#fff5f5!important}
 .cartera-state-btn.active { background: var(--electric); color: #fff; box-shadow: 0 2px 6px rgba(2, 132, 199, 0.3); }
 .cartera-client-select { padding: 7px 12px; border-radius: 20px; border: 1px solid var(--border); font-size: 12px; outline: none; min-width: 250px; background: #fff; }
 
+@media(max-width:900px){
+  .cartera-summary-grid { grid-template-columns: 1fr !important; }
+  .cartera-btn-group { flex-wrap: wrap; }
+  .cartera-client-select { min-width: 100%; width: 100%; margin-top: 5px; }
+  .cartera-filters-bar { flex-direction: column; align-items: stretch; }
+  .cartera-filters-left { flex-direction: column; align-items: stretch; }
+}
 </style>
 </head>
 <body>
