@@ -442,6 +442,24 @@ app.put('/api/configuracion/:id', async (req, res) => {
 // ════════════════════════════════
 // CREDITOS
 // ════════════════════════════════
+
+// Anular cotización (solo si está en estado aprobado)
+app.patch('/api/creditos/:id/anular', async (req, res) => {
+  try {
+    const [[credito]] = await pool.query('SELECT estado FROM creditos WHERE id = ?', [req.params.id]);
+    if (!credito) return res.status(404).json({ error: 'Crédito no encontrado' });
+    
+    if (credito.estado !== 'aprobado') {
+      return res.status(403).json({ error: 'Solo se pueden anular cotizaciones que estén en estado Aprobado' });
+    }
+    
+    await pool.query("UPDATE creditos SET estado = 'anulado' WHERE id = ?", [req.params.id]);
+    res.json({ ok: true, mensaje: 'Cotización anulada correctamente' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/api/creditos', async (req, res) => {
   try {
     const { cliente_id, estado } = req.query;
