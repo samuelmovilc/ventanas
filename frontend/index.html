@@ -384,6 +384,33 @@ tr.anulada-row td{opacity:.55}tr.anulada-row{background:#fff5f5!important}
   padding: 0;
   margin-left: auto;
 }
+
+/* Tarjetas de Cartera */
+.cartera-summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 15px; }
+.cartera-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 15px; display: flex; align-items: center; gap: 15px; box-shadow: var(--shadow); position: relative; overflow: hidden; }
+.cartera-card::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; }
+.cartera-card.total::before { background: var(--electric); }
+.cartera-card.abonos::before { background: var(--green); }
+.cartera-card.saldo::before { background: var(--red); }
+.cartera-card .c-icon { width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+.cartera-card.total .c-icon { background: var(--electric-pale); color: var(--electric-dark); }
+.cartera-card.abonos .c-icon { background: #e6f9f0; color: var(--green-dark); }
+.cartera-card.saldo .c-icon { background: var(--red-pale); color: var(--red); }
+.cartera-card .c-info { flex: 1; }
+.cartera-card .c-info h4 { font-size: 11px; text-transform: uppercase; color: var(--text-mid); margin-bottom: 4px; font-weight: 700; letter-spacing: 0.5px; }
+.cartera-card .c-info .c-val { font-size: 22px; font-weight: 800; color: var(--text); }
+.cartera-card.total .c-info .c-val { color: var(--electric-dark); }
+
+/* Filtros de Cartera */
+.cartera-filters-bar { display: flex; gap: 10px; margin-bottom: 15px; align-items: center; background: var(--surface); padding: 10px 15px; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: 0 2px 5px rgba(0,0,0,0.02); flex-wrap: wrap; justify-content: space-between; }
+.cartera-filters-left { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.cartera-filters-right { display: flex; gap: 10px; align-items: center; }
+.cartera-btn-group { display: flex; gap: 5px; background: var(--surface2); padding: 4px; border-radius: 20px; border: 1px solid var(--border); }
+.cartera-state-btn { border: none; background: transparent; padding: 6px 14px; border-radius: 16px; font-size: 11.5px; font-weight: 600; color: var(--text-mid); cursor: pointer; transition: all 0.2s; }
+.cartera-state-btn:hover { background: rgba(0,0,0,0.04); }
+.cartera-state-btn.active { background: var(--electric); color: #fff; box-shadow: 0 2px 6px rgba(2, 132, 199, 0.3); }
+.cartera-client-select { padding: 7px 12px; border-radius: 20px; border: 1px solid var(--border); font-size: 12px; outline: none; min-width: 250px; background: #fff; }
+
 </style>
 </head>
 <body>
@@ -641,18 +668,50 @@ tr.anulada-row td{opacity:.55}tr.anulada-row{background:#fff5f5!important}
 </div>
 <div class="grid-layout">
   <div class="card" style="grid-column:1/-1">
-    <div style="display:flex;gap:10px;margin-bottom:15px;align-items:center">
-      <div class="search-bar" style="flex:1;background:transparent;border:none;padding:0">
-        <input type="text" id="search-cartera" placeholder="🔍 Buscar por cliente..." oninput="loadCartera()" style="width:100%">
+    <!-- TARJETAS DE RESUMEN -->
+    <div class="cartera-summary-grid">
+      <div class="cartera-card total">
+        <div class="c-icon"><i class="fa-solid fa-wallet"></i></div>
+        <div class="c-info">
+          <h4>Total Cartera</h4>
+          <div class="c-val" id="cartera-sum-total">$0.00</div>
+        </div>
       </div>
-      <select id="filter-cartera-estado" onchange="loadCartera()" style="padding:8px;border-radius:var(--radius-sm);border:1px solid var(--border)">
-        <option value="">Todos los Estados</option>
-        <option value="activo" selected>Activos (Pendientes)</option>
-        <option value="aprobado">Aprobados (Cotizados)</option>
-        <option value="pagado">Pagados</option>
-        <option value="anulado">Anulados</option>
-      </select>
-      <button class="btn btn-primary" onclick="abrirCotizadorCredito()"><i class="fa-solid fa-calculator"></i> Cotizar Nuevo Crédito</button>
+      <div class="cartera-card abonos">
+        <div class="c-icon"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+        <div class="c-info">
+          <h4>Total Recaudado</h4>
+          <div class="c-val" id="cartera-sum-abonos">$0.00</div>
+        </div>
+      </div>
+      <div class="cartera-card saldo">
+        <div class="c-icon"><i class="fa-solid fa-scale-unbalanced"></i></div>
+        <div class="c-info">
+          <h4>Total Pendiente</h4>
+          <div class="c-val" id="cartera-sum-saldo">$0.00</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FILTROS -->
+    <div class="cartera-filters-bar">
+      <div class="cartera-filters-left">
+        <div class="cartera-btn-group" id="cartera-estado-group">
+          <button class="cartera-state-btn active" onclick="setCarteraEstado('')" data-estado="">Todos los Estados</button>
+          <button class="cartera-state-btn" onclick="setCarteraEstado('activo')" data-estado="activo">Activos</button>
+          <button class="cartera-state-btn" onclick="setCarteraEstado('aprobado')" data-estado="aprobado">Aprobados</button>
+          <button class="cartera-state-btn" onclick="setCarteraEstado('pagado')" data-estado="pagado">Pagados</button>
+          <button class="cartera-state-btn" onclick="setCarteraEstado('anulado')" data-estado="anulado">Anulados</button>
+        </div>
+        <select id="filter-cartera-cliente" class="cartera-client-select" onchange="loadCartera()">
+          <option value="">Todos los clientes...</option>
+        </select>
+        <button class="btn btn-secondary btn-xs" onclick="clearCarteraFilters()" title="Borrar Filtros" style="padding: 7px 10px; border-radius: 50%;"><i class="fa-solid fa-filter-circle-xmark"></i></button>
+        <button class="btn btn-secondary btn-xs" onclick="reloadCartera()" title="Actualizar" style="padding: 7px 10px; border-radius: 50%;"><i class="fa-solid fa-rotate-right"></i></button>
+      </div>
+      <div class="cartera-filters-right">
+        <button class="btn btn-primary" onclick="abrirCotizadorCredito()"><i class="fa-solid fa-calculator"></i> Cotizar Nuevo Crédito</button>
+      </div>
     </div>
     
     <div class="tbl-wrap">
@@ -2920,28 +2979,51 @@ async function guardarPlanCreditoAprobado() {
 // ════════════════════════════════
 var currentCarteraId = null;
 
+let carteraAllCreditos = null;
+
 async function loadCartera() {
-  var search = document.getElementById('search-cartera').value.trim().toLowerCase();
-  var estado = document.getElementById('filter-cartera-estado').value;
-  
-  var qs = [];
-  if (estado) qs.push('estado=' + encodeURIComponent(estado));
-  
   try {
-    var url = '/creditos' + (qs.length ? '?' + qs.join('&') : '');
-    var creditos = await apiGet(url);
-    
-    // Filtrado local por cliente (si no se hizo en backend)
-    if (search) {
-      creditos = creditos.filter(function(c) {
-        return (c.cliente_nombre && c.cliente_nombre.toLowerCase().includes(search)) || 
-               (c.cliente_id && c.cliente_id.toLowerCase().includes(search)) ||
-               (c.venta_id && String(c.venta_id).includes(search));
-      });
+    if (!carteraAllCreditos) {
+      carteraAllCreditos = await apiGet('/creditos');
     }
     
+    var activeBtn = document.querySelector('.cartera-state-btn.active');
+    var estado = activeBtn ? activeBtn.getAttribute('data-estado') : '';
+    var clientSelect = document.getElementById('filter-cartera-cliente');
+    var clienteId = clientSelect ? clientSelect.value : '';
+    
+    // Poblar select
+    var uniqueClients = new Map();
+    carteraAllCreditos.forEach(function(c) {
+       if(c.cliente_id) uniqueClients.set(String(c.cliente_id), c.cliente_nombre || 'Sin nombre');
+    });
+    
+    if (clientSelect) {
+      var currentVal = clientSelect.value;
+      var optionsHtml = '<option value="">Todos los clientes...</option>';
+      uniqueClients.forEach(function(nombre, id) {
+         optionsHtml += '<option value="'+id+'">'+id+' - '+nombre+'</option>';
+      });
+      clientSelect.innerHTML = optionsHtml;
+      clientSelect.value = currentVal; 
+    }
+
+    var filtrados = carteraAllCreditos;
+    if (estado) {
+       filtrados = filtrados.filter(function(c) { return c.estado === estado; });
+    }
+    if (clienteId) {
+       filtrados = filtrados.filter(function(c) { return String(c.cliente_id) === clienteId; });
+    }
+    
+    var sumTotal = 0, sumAbonos = 0, sumSaldo = 0;
+    
     var html = '';
-    creditos.forEach(function(c) {
+    filtrados.forEach(function(c) {
+      sumTotal += parseFloat(c.total_credito) || 0;
+      sumAbonos += parseFloat(c.total_pagado) || 0;
+      sumSaldo += parseFloat(c.saldo_pendiente) || 0;
+
       var badgeClass = '';
       if(c.estado === 'activo') badgeClass = 'style="background:var(--electric);color:#fff;padding:2px 6px;border-radius:4px;font-size:10px"';
       else if(c.estado === 'pagado') badgeClass = 'style="background:var(--green);color:#fff;padding:2px 6px;border-radius:4px;font-size:10px"';
@@ -2963,10 +3045,38 @@ async function loadCartera() {
       '</tr>';
     });
     
-    document.getElementById('cartera-body').innerHTML = html;
+    var tbody = document.getElementById('cartera-body');
+    if(tbody) tbody.innerHTML = html;
+    
+    var elTotal = document.getElementById('cartera-sum-total');
+    var elAbonos = document.getElementById('cartera-sum-abonos');
+    var elSaldo = document.getElementById('cartera-sum-saldo');
+    
+    if(elTotal) elTotal.innerText = fmt(sumTotal);
+    if(elAbonos) elAbonos.innerText = fmt(sumAbonos);
+    if(elSaldo) elSaldo.innerText = fmt(sumSaldo);
+    
   } catch(e) {
     toast('Error cargando cartera: ' + e.message, 'error');
   }
+}
+
+function setCarteraEstado(estado) {
+  document.querySelectorAll('.cartera-state-btn').forEach(function(b) { b.classList.remove('active'); });
+  var btn = document.querySelector('.cartera-state-btn[data-estado="'+estado+'"]');
+  if(btn) btn.classList.add('active');
+  loadCartera();
+}
+
+function clearCarteraFilters() {
+  var sel = document.getElementById('filter-cartera-cliente');
+  if(sel) sel.value = '';
+  setCarteraEstado('');
+}
+
+function reloadCartera() {
+  carteraAllCreditos = null;
+  loadCartera();
 }
 
 async function verDetalleCredito(id) {
